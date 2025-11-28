@@ -1,6 +1,8 @@
 # 🧠 Neural Sine Learner
 
-An interactive neural network visualizer learning the sine function in real-time. Built from scratch with no external ML libraries.
+An interactive neural network visualizer learning the sine function in real-time. Built from scratch with no external ML libraries. Watch how a feedforward neural network progressively learns to approximate the sine wave through gradient descent and backpropagation.
+
+> 🤖 **Note on Development:** This project was designed and programmed with the assistance of Artificial Intelligence. It serves as a dual example: on one hand, it teaches the fundamentals of neural networks (forward propagation, backpropagation, gradient descent), and on the other, it demonstrates how modern generative AI can accelerate and enhance software development.
 
 <p align="center">
   <img src="preview.png" alt="Neural Sine Learner Preview" width="800"/>
