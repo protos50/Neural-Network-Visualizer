@@ -1,0 +1,45 @@
+# Node / Next.js
+node_modules/
+.next/
+.turbo/
+out/
+dist/
+
+# Logs
+npm-debug.log*
+ yarn-debug.log*
+ yarn-error.log*
+ pnpm-debug.log*
+
+# Runtime files
+.env
+.env.*
+.vercel/
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.idea/
+
+# Lockfiles (optional to keep; uncomment if you prefer to commit)
+# package-lock.json
+# yarn.lock
+
+# Generated coverage
+coverage/
+
+# Build artifacts
+build/
+
+# Temporary files
+*.log
+*.tmp
+
+# Development files
+plan_desarrollo.md
