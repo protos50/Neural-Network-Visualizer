@@ -713,6 +713,10 @@ export default function Home() {
       },
     });
     
+    // Calcular feature importance inicial
+    const importance = tfNetworkRef.current.getFeatureImportance(loadedDataset.inputCols);
+    setFeatureImportance(importance);
+    
   }, [tfConfig]);
 
   const handleToggleTestMode = useCallback(() => {
@@ -1250,7 +1254,7 @@ export default function Home() {
             <span>{t('footerAuthor')} • {t('footerYear')}</span>
             <span className="hidden md:inline">|</span>
             <span className="flex items-center gap-1">
-              <span>Neural Sine Learner v1.0</span>
+              <span>Neural Network Visualizer v2.0</span>
             </span>
           </div>
           

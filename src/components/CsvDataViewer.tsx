@@ -98,8 +98,8 @@ export default function CsvDataViewer({
     }
   }, [isTraining, viewMode]);
   
-  // Calcular accuracy solo sobre test
-  const accuracy = useMemo(() => {
+  // Calcular accuracy sobre test
+  const testAccuracy = useMemo(() => {
     if (predictions.length === 0 || Y.length === 0) return 0;
     
     let correct = 0;
@@ -112,6 +112,21 @@ export default function CsvDataViewer({
     
     return testCount > 0 ? (correct / testCount) * 100 : 0;
   }, [predictions, Y, splitIndex, testCount]);
+  
+  // Calcular accuracy sobre train
+  const trainAccuracy = useMemo(() => {
+    if (predictions.length === 0 || Y.length === 0) return 0;
+    
+    let correct = 0;
+    for (let i = 0; i < splitIndex; i++) {
+      if (i >= predictions.length) continue;
+      const pred = predictions[i] > 0.5 ? 1 : 0;
+      const actual = Y[i][0] > 0.5 ? 1 : 0;
+      if (pred === actual) correct++;
+    }
+    
+    return trainCount > 0 ? (correct / trainCount) * 100 : 0;
+  }, [predictions, Y, splitIndex, trainCount]);
   
   // Datos de la fila actual
   const globalIndex = viewData.offset + localIndex;
@@ -177,7 +192,7 @@ export default function CsvDataViewer({
       </div>
       
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="grid grid-cols-4 gap-2 text-center">
         <div className="p-2 bg-blue-400/10 border border-blue-400/20 rounded">
           <div className="text-[10px] text-blue-400/60 uppercase">{t('epoch')}</div>
           <div className="text-lg font-mono text-blue-400">{epoch}</div>
@@ -187,8 +202,12 @@ export default function CsvDataViewer({
           <div className="text-lg font-mono text-yellow-400">{loss.toFixed(4)}</div>
         </div>
         <div className="p-2 bg-green-400/10 border border-green-400/20 rounded">
-          <div className="text-[10px] text-green-400/60 uppercase">{t('accuracyTest')}</div>
-          <div className="text-lg font-mono text-green-400">{accuracy.toFixed(1)}%</div>
+          <div className="text-[10px] text-green-400/60 uppercase">Acc Train</div>
+          <div className="text-lg font-mono text-green-400">{trainAccuracy.toFixed(1)}%</div>
+        </div>
+        <div className="p-2 bg-orange-400/10 border border-orange-400/20 rounded">
+          <div className="text-[10px] text-orange-400/60 uppercase">Acc Test</div>
+          <div className="text-lg font-mono text-orange-400">{testAccuracy.toFixed(1)}%</div>
         </div>
       </div>
       

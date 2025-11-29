@@ -405,8 +405,9 @@ export class TensorFlowNetwork {
   }
 
   // Calcular importancia de features basada en pesos
-  // Retorna un array con la importancia de cada feature de entrada
-  getFeatureImportance(featureNames?: string[]): { name: string; importance: number; normalizedImportance: number }[] {
+  // Si neuronIndex se especifica, calcula importancia para esa neurona específica
+  // Si no, calcula importancia general (promedio de todas las neuronas)
+  getFeatureImportance(featureNames?: string[], layerIndex?: number, neuronIndex?: number): { name: string; importance: number; normalizedImportance: number }[] {
     if (!this.model || this.config.inputSize <= 1) {
       return [];
     }
@@ -418,13 +419,21 @@ export class TensorFlowNetwork {
     // Pesos de la primera capa: weights[0][toNeuron][fromInput]
     const firstLayerWeights = weights[0];
     
-    // Calcular importancia como suma de valores absolutos de pesos
-    // desde cada input hacia todas las neuronas de la primera capa
-    const importance: number[] = new Array(this.config.inputSize).fill(0);
+    let importance: number[];
     
-    for (let to = 0; to < firstLayerWeights.length; to++) {
-      for (let from = 0; from < this.config.inputSize; from++) {
-        importance[from] += Math.abs(firstLayerWeights[to][from]);
+    if (layerIndex === 1 && neuronIndex !== undefined && neuronIndex < firstLayerWeights.length) {
+      // Importancia específica para una neurona de la primera capa oculta
+      // Muestra qué inputs le importan más a ESTA neurona
+      importance = firstLayerWeights[neuronIndex].map(w => Math.abs(w));
+    } else {
+      // Importancia general: suma de valores absolutos de pesos
+      // desde cada input hacia todas las neuronas de la primera capa
+      importance = new Array(this.config.inputSize).fill(0);
+      
+      for (let to = 0; to < firstLayerWeights.length; to++) {
+        for (let from = 0; from < this.config.inputSize; from++) {
+          importance[from] += Math.abs(firstLayerWeights[to][from]);
+        }
       }
     }
     

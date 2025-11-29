@@ -165,7 +165,8 @@ function NeuronInfoPanel({
   networkState,
   t,
   appMode,
-  featureImportance
+  featureImportance,
+  featureNames
 }: { 
   info: NeuronInfo | null; 
   pattern: { x: number; y: number }[];
@@ -175,6 +176,7 @@ function NeuronInfoPanel({
   t: (key: any, replacements?: Record<string, string>) => string;
   appMode?: 'regression' | 'classification';
   featureImportance?: FeatureImportance[];
+  featureNames?: string[];
 }) {
   if (!info) return null;
   
@@ -186,6 +188,30 @@ function NeuronInfoPanel({
   const outputWeight = isLastHiddenLayer && networkState.weights.length > 0
     ? networkState.weights[networkState.weights.length - 1][0]?.[info.index] ?? null
     : null;
+  
+  // Calcular feature importance específica para esta neurona
+  // Solo para neuronas de la primera capa oculta (layer === 1)
+  const neuronFeatureImportance = useMemo(() => {
+    if (appMode !== 'classification' || !networkState.weights.length) return null;
+    
+    // Para neuronas de la primera capa oculta, usar sus pesos específicos
+    if (info.layer === 1 && networkState.weights[0]) {
+      const neuronWeights = networkState.weights[0][info.index];
+      if (!neuronWeights) return null;
+      
+      const importance = neuronWeights.map(w => Math.abs(w));
+      const total = importance.reduce((a, b) => a + b, 0);
+      
+      return importance.map((imp, i) => ({
+        name: featureNames?.[i] || `F${i + 1}`,
+        importance: imp,
+        normalizedImportance: total > 0 ? (imp / total) * 100 : 0,
+      }));
+    }
+    
+    // Para otras capas, usar la importancia general
+    return featureImportance || null;
+  }, [appMode, info.layer, info.index, networkState.weights, featureNames, featureImportance]);
   
   // Calcular posición segura para el tooltip (fixed positioning)
   const tooltipWidth = 320;
@@ -223,15 +249,15 @@ function NeuronInfoPanel({
       
       {/* Mini gráfico del patrón o barras de importancia */}
       <div className="mb-3">
-        {appMode === 'classification' && info.layer === numLayers - 1 && featureImportance && featureImportance.length > 0 ? (
-          /* Modo clasificación - capa de salida: mostrar importancia de features */
+        {appMode === 'classification' && neuronFeatureImportance && neuronFeatureImportance.length > 0 ? (
+          /* Modo clasificación: mostrar importancia de features para esta neurona */
           <>
             <div className="text-[10px] text-cyan-400/50 uppercase mb-1">
-              📊 Feature Importance
+              📊 {t('featureImportance')} {info.layer === 1 ? `(${t('neuron')} ${info.index + 1})` : ''}
             </div>
-            <FeatureImportanceBars features={featureImportance} />
+            <FeatureImportanceBars features={neuronFeatureImportance} />
             <div className="text-[9px] text-cyan-400/40 mt-1">
-              Contribución de cada entrada a la predicción
+              {info.layer === 1 ? 'Pesos de entrada a esta neurona' : t('featureContribution')}
             </div>
           </>
         ) : (
@@ -817,6 +843,7 @@ export default function NeuralNetworkViz({
           t={t}
           appMode={appMode}
           featureImportance={featureImportance}
+          featureNames={featureImportance?.map(f => f.name)}
         />
       )}
     </div>

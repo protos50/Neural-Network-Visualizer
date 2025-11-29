@@ -8,8 +8,8 @@ export type Language = 'es' | 'en';
 const translations = {
   es: {
     // Header
-    title: 'NEURAL SINE LEARNER',
-    subtitle: 'Visualizador de Red Neuronal Aprendiendo la Función Seno en Tiempo Real',
+    title: 'NEURAL NETWORK VISUALIZER',
+    subtitle: 'Visualizador Interactivo de Redes Neuronales en Tiempo Real',
     
     // Oscilloscope
     functionApproximation: 'Aproximación de Función',
@@ -179,11 +179,29 @@ const translations = {
     // Feature importance
     featureImportance: 'Importancia de Features',
     noImportanceData: 'Sin datos de importancia',
+    featureContribution: 'Contribución de cada entrada a la predicción',
+    
+    // Dataset Panel (Math functions)
+    mathFunctions: 'Funciones Matemáticas',
+    currentFunction: 'Función Actual',
+    testModeLabel: 'Modo Test',
+    testModeOn: 'Test ON',
+    trigonometric: 'Trigonométricas',
+    activationFunctions: 'Funciones de Activación',
+    waveFunctions: 'Ondas',
+    customFunction: 'Personalizada',
+    advancedOptions: 'Opciones Avanzadas',
+    noiseLevel: 'Nivel de Ruido',
+    numPoints: 'Puntos de Datos',
+    xRange: 'Rango X',
+    importCsv: 'Importar CSV',
+    customFormulaLabel: 'Fórmula Personalizada',
+    applyFormula: 'Aplicar Fórmula',
   },
   en: {
     // Header
-    title: 'NEURAL SINE LEARNER',
-    subtitle: 'Neural Network Visualizer Learning the Sine Function in Real Time',
+    title: 'NEURAL NETWORK VISUALIZER',
+    subtitle: 'Interactive Neural Network Visualizer in Real Time',
     
     // Oscilloscope
     functionApproximation: 'Function Approximation',
@@ -353,6 +371,24 @@ const translations = {
     // Feature importance
     featureImportance: 'Feature Importance',
     noImportanceData: 'No importance data',
+    featureContribution: 'Contribution of each input to the prediction',
+    
+    // Dataset Panel (Math functions)
+    mathFunctions: 'Mathematical Functions',
+    currentFunction: 'Current Function',
+    testModeLabel: 'Test Mode',
+    testModeOn: 'Test ON',
+    trigonometric: 'Trigonometric',
+    activationFunctions: 'Activation Functions',
+    waveFunctions: 'Waves',
+    customFunction: 'Custom',
+    advancedOptions: 'Advanced Options',
+    noiseLevel: 'Noise Level',
+    numPoints: 'Data Points',
+    xRange: 'X Range',
+    importCsv: 'Import CSV',
+    customFormulaLabel: 'Custom Formula',
+    applyFormula: 'Apply Formula',
   },
 };
 

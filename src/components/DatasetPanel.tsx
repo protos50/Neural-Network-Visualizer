@@ -28,12 +28,7 @@ const functionsByCategory = {
   custom: ['custom'] as PredefinedFunction[],
 };
 
-const categoryNames = {
-  trigonometric: '📐 Trigonométricas',
-  activation: '🧠 Activación',
-  wave: '〰️ Ondas',
-  custom: '✏️ Personalizada',
-};
+// Category names will be translated in the component
 
 export function DatasetPanel({
   config,
@@ -46,6 +41,14 @@ export function DatasetPanel({
   const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [customFormula, setCustomFormula] = useState(config.customFormula || 'sin(x) + 0.5*cos(2*x)');
+  
+  // Category names with translations
+  const categoryNames = {
+    trigonometric: `📐 ${t('trigonometric')}`,
+    activation: `🧠 ${t('activationFunctions')}`,
+    wave: `〰️ ${t('waveFunctions')}`,
+    custom: `✏️ ${t('customFunction')}`,
+  };
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [formulaError, setFormulaError] = useState<string | null>(null);
 
@@ -125,25 +128,23 @@ export function DatasetPanel({
 
   return (
     <div className="terminal-panel p-3 space-y-3">
+      {/* Test Mode Button - prominente arriba */}
+      {onToggleTestMode && (
+        <button
+          onClick={onToggleTestMode}
+          className={`w-full py-2 text-sm rounded border transition-all flex items-center justify-center gap-2 ${
+            isTestMode
+              ? 'bg-purple-600/30 border-purple-500/50 text-purple-400'
+              : 'bg-gray-600/20 border-gray-500/30 text-gray-400 hover:bg-purple-600/20 hover:border-purple-500/30 hover:text-purple-300'
+          }`}
+        >
+          🔬 {isTestMode ? t('testModeOn') : t('testModeLabel')}
+        </button>
+      )}
+      
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-crt-green/70 uppercase tracking-wider flex items-center gap-2">
-          📊 {t('datasetConfig' as any) || 'Dataset Configuration'}
-        </div>
-        <div className="flex items-center gap-2">
-          {onToggleTestMode && (
-            <button
-              onClick={onToggleTestMode}
-              className={`px-2 py-1 text-[10px] rounded border transition-all ${
-                isTestMode
-                  ? 'bg-purple-600/30 border-purple-500/50 text-purple-400'
-                  : 'bg-gray-600/20 border-gray-500/30 text-gray-400 hover:bg-gray-600/30'
-              }`}
-            >
-              {isTestMode ? '🔬 Test Mode ON' : '🔬 Test Mode'}
-            </button>
-          )}
-        </div>
+      <div className="text-xs text-crt-green/70 uppercase tracking-wider flex items-center gap-2">
+        📐 {t('mathFunctions')}
       </div>
 
       {/* Función actual */}
