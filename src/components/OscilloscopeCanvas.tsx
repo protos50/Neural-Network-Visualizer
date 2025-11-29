@@ -124,6 +124,31 @@ export default function OscilloscopeCanvas({
     });
   }, [dataPoints, toCanvasCoords]);
 
+  // Helper para dibujar línea con detección de saltos (evita línea fantasma al reiniciar ciclo)
+  const drawLineWithGaps = useCallback((
+    ctx: CanvasRenderingContext2D, 
+    points: { x: number; y: number }[],
+    jumpThreshold: number = 2 // Si el salto en X es mayor a esto, empezar nuevo segmento
+  ) => {
+    if (points.length < 2) return;
+    
+    const first = toCanvasCoords(points[0].x, points[0].y);
+    ctx.moveTo(first.x, first.y);
+    
+    for (let i = 1; i < points.length; i++) {
+      const prevX = points[i - 1].x;
+      const currX = points[i].x;
+      const { x, y } = toCanvasCoords(currX, points[i].y);
+      
+      // Detectar salto grande en X (vuelta al inicio del ciclo)
+      if (Math.abs(currX - prevX) > jumpThreshold) {
+        ctx.moveTo(x, y); // Empezar nuevo segmento
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+  }, [toCanvasCoords]);
+
   // Dibujar la curva seno verdadera (más visible)
   const drawTrueSine = useCallback((ctx: CanvasRenderingContext2D) => {
     if (trueSine.length < 2) return;
@@ -134,13 +159,7 @@ export default function OscilloscopeCanvas({
     ctx.setLineDash([]);
     
     ctx.beginPath();
-    const first = toCanvasCoords(trueSine[0].x, trueSine[0].y);
-    ctx.moveTo(first.x, first.y);
-    
-    for (let i = 1; i < trueSine.length; i++) {
-      const { x, y } = toCanvasCoords(trueSine[i].x, trueSine[i].y);
-      ctx.lineTo(x, y);
-    }
+    drawLineWithGaps(ctx, trueSine);
     ctx.stroke();
     
     // Línea principal amarilla punteada
@@ -149,14 +168,10 @@ export default function OscilloscopeCanvas({
     ctx.setLineDash([8, 4]);
     
     ctx.beginPath();
-    ctx.moveTo(first.x, first.y);
-    for (let i = 1; i < trueSine.length; i++) {
-      const { x, y } = toCanvasCoords(trueSine[i].x, trueSine[i].y);
-      ctx.lineTo(x, y);
-    }
+    drawLineWithGaps(ctx, trueSine);
     ctx.stroke();
     ctx.setLineDash([]);
-  }, [trueSine, toCanvasCoords]);
+  }, [trueSine, drawLineWithGaps]);
 
   // Dibujar la predicción de la red (láser verde)
   const drawPredictions = useCallback((ctx: CanvasRenderingContext2D, time: number) => {
@@ -169,13 +184,7 @@ export default function OscilloscopeCanvas({
     ctx.lineJoin = 'round';
     
     ctx.beginPath();
-    const first = toCanvasCoords(predictions[0].x, predictions[0].y);
-    ctx.moveTo(first.x, first.y);
-    
-    for (let i = 1; i < predictions.length; i++) {
-      const { x, y } = toCanvasCoords(predictions[i].x, predictions[i].y);
-      ctx.lineTo(x, y);
-    }
+    drawLineWithGaps(ctx, predictions);
     ctx.stroke();
     
     // Capa de glow medio
@@ -183,11 +192,7 @@ export default function OscilloscopeCanvas({
     ctx.lineWidth = 6;
     
     ctx.beginPath();
-    ctx.moveTo(first.x, first.y);
-    for (let i = 1; i < predictions.length; i++) {
-      const { x, y } = toCanvasCoords(predictions[i].x, predictions[i].y);
-      ctx.lineTo(x, y);
-    }
+    drawLineWithGaps(ctx, predictions);
     ctx.stroke();
     
     // Capa central brillante
@@ -195,11 +200,7 @@ export default function OscilloscopeCanvas({
     ctx.lineWidth = 2;
     
     ctx.beginPath();
-    ctx.moveTo(first.x, first.y);
-    for (let i = 1; i < predictions.length; i++) {
-      const { x, y } = toCanvasCoords(predictions[i].x, predictions[i].y);
-      ctx.lineTo(x, y);
-    }
+    drawLineWithGaps(ctx, predictions);
     ctx.stroke();
     
     // Centro blanco
@@ -207,13 +208,9 @@ export default function OscilloscopeCanvas({
     ctx.lineWidth = 1;
     
     ctx.beginPath();
-    ctx.moveTo(first.x, first.y);
-    for (let i = 1; i < predictions.length; i++) {
-      const { x, y } = toCanvasCoords(predictions[i].x, predictions[i].y);
-      ctx.lineTo(x, y);
-    }
+    drawLineWithGaps(ctx, predictions);
     ctx.stroke();
-  }, [predictions, toCanvasCoords]);
+  }, [predictions, drawLineWithGaps]);
 
   // Dibujar leyenda
   const drawLegend = useCallback((ctx: CanvasRenderingContext2D) => {

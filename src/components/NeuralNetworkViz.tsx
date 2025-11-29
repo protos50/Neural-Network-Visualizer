@@ -3,7 +3,22 @@
 import { useMemo, useState, useEffect } from 'react';
 import type { NetworkState, NeuronInfo, LayerType, PatternInfo } from '@/lib/neural-network';
 import { activationDescriptions } from '@/lib/neural-network';
+import { activationDescriptions as tfActivationDescriptions } from '@/lib/neural-network-tfjs';
 import { useI18n } from '@/lib/i18n';
+
+// Combinar descripciones de activación de ambas fuentes
+function getActivationDescription(activation: string): { formula: string; range: string; desc: string } {
+  // Primero buscar en descripciones manuales
+  if (activation in activationDescriptions) {
+    return activationDescriptions[activation as keyof typeof activationDescriptions];
+  }
+  // Luego en descripciones de TensorFlow
+  if (activation in tfActivationDescriptions) {
+    return tfActivationDescriptions[activation as keyof typeof tfActivationDescriptions];
+  }
+  // Fallback
+  return { formula: activation, range: '(-∞, ∞)', desc: 'TensorFlow.js activation' };
+}
 
 interface NeuralNetworkVizProps {
   networkState: NetworkState;
@@ -109,7 +124,7 @@ function NeuronInfoPanel({
 }) {
   if (!info) return null;
   
-  const activationInfo = activationDescriptions[info.activation];
+  const activationInfo = getActivationDescription(info.activation);
   
   // Para neuronas de la última capa oculta, obtener el peso hacia la salida
   const numLayers = networkState.layers.length;
@@ -222,10 +237,31 @@ function NeuronInfoPanel({
       )}
       
       {/* Bias */}
-      {info.layer > 0 && (
+      {info.layer > 0 && info.bias !== 0 && (
         <div className="mb-2">
           <div className="text-[10px] text-crt-green/50 uppercase">{t('bias')}</div>
           <div className="text-xs text-crt-green font-mono">{info.bias.toFixed(4)}</div>
+        </div>
+      )}
+      
+      {/* Info de TensorFlow.js */}
+      {info.tfInfo && (
+        <div className="mb-2 p-2 bg-cyan-400/5 border border-cyan-400/30 rounded">
+          <div className="text-[10px] text-cyan-400/70 uppercase mb-1">⚡ TensorFlow.js</div>
+          <div className="grid grid-cols-2 gap-1 text-[10px]">
+            <div>
+              <span className="text-cyan-400/50">Optimizer:</span>
+              <span className="text-cyan-400 font-mono ml-1">{info.tfInfo.optimizer.toUpperCase()}</span>
+            </div>
+            <div>
+              <span className="text-cyan-400/50">Loss:</span>
+              <span className="text-cyan-400 font-mono ml-1">{info.tfInfo.loss}</span>
+            </div>
+            <div className="col-span-2">
+              <span className="text-cyan-400/50">Learning Rate:</span>
+              <span className="text-cyan-400 font-mono ml-1">{info.tfInfo.learningRate}</span>
+            </div>
+          </div>
         </div>
       )}
       

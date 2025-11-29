@@ -140,10 +140,16 @@ export interface NeuronInfo {
   index: number;
   weights: number[];
   bias: number;
-  activation: ActivationFunction;
+  activation: ActivationFunction | string; // Soporta TF.js activations también
   currentInput: number;   // z = Σ(w*x) + b
   currentOutput: number;  // a = activation(z)
   patternInfo: PatternInfo;  // Structured pattern data for i18n
+  // Info extra para TensorFlow.js
+  tfInfo?: {
+    optimizer: string;
+    loss: string;
+    learningRate: number;
+  };
 }
 
 export interface NetworkConfig {
