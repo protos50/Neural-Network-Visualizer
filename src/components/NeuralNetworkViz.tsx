@@ -20,6 +20,12 @@ function getActivationDescription(activation: string): { formula: string; range:
   return { formula: activation, range: '(-∞, ∞)', desc: 'TensorFlow.js activation' };
 }
 
+interface FeatureImportance {
+  name: string;
+  importance: number;
+  normalizedImportance: number;
+}
+
 interface NeuralNetworkVizProps {
   networkState: NetworkState;
   getNeuronInfo: (layer: number, index: number) => NeuronInfo;
@@ -32,6 +38,9 @@ interface NeuralNetworkVizProps {
   onToggleTraining?: () => void;
   onStop?: () => void;
   onReset?: () => void;
+  // Classification mode
+  appMode?: 'regression' | 'classification';
+  featureImportance?: FeatureImportance[];
 }
 
 // Mini gráfico del patrón de la neurona
@@ -80,6 +89,47 @@ function MiniPatternGraph({ points, width = 120, height = 60 }: {
   );
 }
 
+// Componente para mostrar barras de importancia de features
+function FeatureImportanceBars({ features, width = 200, height = 100 }: { 
+  features: FeatureImportance[]; 
+  width?: number; 
+  height?: number;
+}) {
+  if (!features || features.length === 0) return null;
+  
+  const maxImportance = Math.max(...features.map(f => f.normalizedImportance), 1);
+  const barHeight = Math.min(14, (height - 20) / features.length);
+  const barGap = 2;
+  
+  return (
+    <div className="p-2 bg-black/50 rounded border border-cyan-400/30">
+      <div className="text-[9px] text-cyan-400/60 uppercase mb-2">Feature Importance</div>
+      <div className="space-y-1">
+        {features.map((feature, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-[8px] text-green-400/70 w-12 truncate" title={feature.name}>
+              {feature.name}
+            </span>
+            <div className="flex-1 h-2 bg-gray-800 rounded overflow-hidden">
+              <div 
+                className="h-full rounded transition-all duration-300"
+                style={{ 
+                  width: `${(feature.normalizedImportance / maxImportance) * 100}%`,
+                  background: `linear-gradient(90deg, rgba(0, 255, 65, 0.4), rgba(0, 255, 65, 0.8))`,
+                  boxShadow: '0 0 4px rgba(0, 255, 65, 0.5)'
+                }}
+              />
+            </div>
+            <span className="text-[8px] text-cyan-400 font-mono w-10 text-right">
+              {feature.normalizedImportance.toFixed(1)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Helper functions for i18n translation
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getLayerName(info: NeuronInfo, t: (key: any) => string): string {
@@ -113,7 +163,9 @@ function NeuronInfoPanel({
   pattern,
   position,
   networkState,
-  t
+  t,
+  appMode,
+  featureImportance
 }: { 
   info: NeuronInfo | null; 
   pattern: { x: number; y: number }[];
@@ -121,6 +173,8 @@ function NeuronInfoPanel({
   networkState: NetworkState;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: (key: any, replacements?: Record<string, string>) => string;
+  appMode?: 'regression' | 'classification';
+  featureImportance?: FeatureImportance[];
 }) {
   if (!info) return null;
   
@@ -167,22 +221,38 @@ function NeuronInfoPanel({
         </div>
       </div>
       
-      {/* Mini gráfico del patrón */}
+      {/* Mini gráfico del patrón o barras de importancia */}
       <div className="mb-3">
-        <div className="text-[10px] text-crt-green/50 uppercase mb-1">
-          📈 {info.layer === 0 ? t('inputIdentity') : 
-              info.layer === numLayers - 1 ? t('finalOutput') :
-              t('neuronResponse')}
-        </div>
-        <MiniPatternGraph points={pattern} width={260} height={70} />
-        <div className="text-[9px] text-crt-green/40 mt-1">
-          {info.layer === 0 
-            ? t('normalizedInput')
-            : info.layer === numLayers - 1 
-              ? t('finalPrediction')
-              : t('neuronCurve', { activation: info.activation })
-          }
-        </div>
+        {appMode === 'classification' && info.layer === numLayers - 1 && featureImportance && featureImportance.length > 0 ? (
+          /* Modo clasificación - capa de salida: mostrar importancia de features */
+          <>
+            <div className="text-[10px] text-cyan-400/50 uppercase mb-1">
+              📊 Feature Importance
+            </div>
+            <FeatureImportanceBars features={featureImportance} />
+            <div className="text-[9px] text-cyan-400/40 mt-1">
+              Contribución de cada entrada a la predicción
+            </div>
+          </>
+        ) : (
+          /* Modo regresión o capas ocultas: mostrar gráfico de patrón */
+          <>
+            <div className="text-[10px] text-crt-green/50 uppercase mb-1">
+              📈 {info.layer === 0 ? t('inputIdentity') : 
+                  info.layer === numLayers - 1 ? t('finalOutput') :
+                  t('neuronResponse')}
+            </div>
+            <MiniPatternGraph points={pattern} width={260} height={70} />
+            <div className="text-[9px] text-crt-green/40 mt-1">
+              {info.layer === 0 
+                ? t('normalizedInput')
+                : info.layer === numLayers - 1 
+                  ? t('finalPrediction')
+                  : t('neuronCurve', { activation: info.activation })
+              }
+            </div>
+          </>
+        )}
         {outputWeight !== null && (
           <div className={`text-[10px] font-mono mt-1 px-2 py-0.5 rounded ${
             outputWeight > 0 ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
@@ -297,6 +367,8 @@ export default function NeuralNetworkViz({
   onToggleTraining,
   onStop,
   onReset,
+  appMode,
+  featureImportance,
 }: NeuralNetworkVizProps) {
   const { t } = useI18n();
   const [hoveredNeuron, setHoveredNeuron] = useState<{ info: NeuronInfo; pattern: { x: number; y: number }[] } | null>(null);
@@ -743,6 +815,8 @@ export default function NeuralNetworkViz({
           position={mousePos}
           networkState={networkState}
           t={t}
+          appMode={appMode}
+          featureImportance={featureImportance}
         />
       )}
     </div>

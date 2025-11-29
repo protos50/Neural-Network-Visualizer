@@ -104,6 +104,9 @@ export default function Home() {
   // Train/Test split (%)
   const [trainSplit, setTrainSplit] = useState(80);
   
+  // Feature importance para modo clasificación
+  const [featureImportance, setFeatureImportance] = useState<{ name: string; importance: number; normalizedImportance: number }[]>([]);
+  
   // Callback para resultados del worker
   const handleWorkerResult = useCallback((result: {
     loss: number;
@@ -381,6 +384,12 @@ export default function Home() {
               momentum: 0,
             },
           });
+          
+          // Calcular feature importance en modo clasificación
+          if (appMode === 'classification' && csvDataset) {
+            const importance = tfNetworkRef.current.getFeatureImportance(csvDataset.inputCols);
+            setFeatureImportance(importance);
+          }
           
           if (currentLoss < 0.0005) {
             setIsTraining(false);
@@ -916,7 +925,7 @@ export default function Home() {
               }`}
             >
               <LineChart size={14} />
-              Regresión
+              {t('appModeRegression')}
             </button>
             <button
               onClick={() => {
@@ -937,7 +946,7 @@ export default function Home() {
               }`}
             >
               <Database size={14} />
-              Clasificación
+              {t('appModeClassification')}
             </button>
           </div>
           
@@ -959,9 +968,9 @@ export default function Home() {
                 : 'bg-cyan-400/10 text-cyan-400/60 border border-cyan-400/30'
           }`}>
             {appMode === 'classification'
-              ? '📊 Clasificación con TensorFlow.js'
+              ? t('appModeClassificationDesc')
               : networkMode === 'manual' 
-                ? '🧠 Backprop manual (educativo)' 
+                ? t('appModeRegressionDesc')
                 : '⚡ TensorFlow.js (optimizado)'}
           </div>
           {/* Toggle Web Worker (solo modo manual) */}
@@ -1037,8 +1046,8 @@ export default function Home() {
                 /* Placeholder cuando no hay dataset cargado */
                 <div className="w-[750px] h-[400px] bg-black/60 border border-cyan-400/30 rounded-lg flex flex-col items-center justify-center">
                   <Database className="w-16 h-16 text-cyan-400/30 mb-4" />
-                  <p className="text-cyan-400/50 text-sm">Carga un dataset CSV desde el panel derecho</p>
-                  <p className="text-cyan-400/30 text-xs mt-2">Carpeta: /public/datasets/</p>
+                  <p className="text-cyan-400/50 text-sm">{t('noDatasetLoaded')}</p>
+                  <p className="text-cyan-400/30 text-xs mt-2">{t('datasetFolder')}</p>
                 </div>
               )
             ) : (
@@ -1173,6 +1182,8 @@ export default function Home() {
             onToggleTraining={() => setIsTraining(!isTraining)}
             onStop={handleStop}
             onReset={handleReset}
+            appMode={appMode}
+            featureImportance={featureImportance}
           />
         </div>
       </div>

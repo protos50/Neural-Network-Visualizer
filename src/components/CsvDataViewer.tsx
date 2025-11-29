@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Table, Activity, FlaskConical, GraduationCap, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 interface CsvDataViewerProps {
   X: number[][];
@@ -36,6 +37,7 @@ export default function CsvDataViewer({
   loss,
   datasetName,
 }: CsvDataViewerProps) {
+  const { t } = useI18n();
   const [viewMode, setViewMode] = useState<ViewMode>('train');
   const [localIndex, setLocalIndex] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
@@ -127,15 +129,15 @@ export default function CsvDataViewer({
           <span>📊 {datasetName}</span>
         </div>
         <div className="text-[10px] text-cyan-400/50">
-          {X.length} filas • {inputSize} entradas → {outputSize} salida
+          {X.length} {t('rows')} • {inputSize} {t('inputs')} → {outputSize} {t('outputs')}
         </div>
       </div>
       
       {/* Train/Test Split Slider */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px]">
-          <span className="text-green-400">🎓 Train: {trainSplit}% ({splitIndex} filas)</span>
-          <span className="text-orange-400">🧪 Test: {100 - trainSplit}% ({testCount} filas)</span>
+          <span className="text-green-400">🎓 {t('trainSplit')}: {trainSplit}% ({splitIndex} {t('rows')})</span>
+          <span className="text-orange-400">🧪 {t('testSplit')}: {100 - trainSplit}% ({testCount} {t('rows')})</span>
         </div>
         <input
           type="range"
@@ -159,7 +161,7 @@ export default function CsvDataViewer({
           }`}
         >
           <GraduationCap size={14} />
-          Entrenamiento ({trainCount})
+          {t('training')} ({trainCount})
         </button>
         <button
           onClick={() => setViewMode('test')}
@@ -170,22 +172,22 @@ export default function CsvDataViewer({
           }`}
         >
           <FlaskConical size={14} />
-          Test ({testCount})
+          {t('test')} ({testCount})
         </button>
       </div>
       
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="p-2 bg-blue-400/10 border border-blue-400/20 rounded">
-          <div className="text-[10px] text-blue-400/60 uppercase">Época</div>
+          <div className="text-[10px] text-blue-400/60 uppercase">{t('epoch')}</div>
           <div className="text-lg font-mono text-blue-400">{epoch}</div>
         </div>
         <div className="p-2 bg-yellow-400/10 border border-yellow-400/20 rounded">
-          <div className="text-[10px] text-yellow-400/60 uppercase">Loss (train)</div>
+          <div className="text-[10px] text-yellow-400/60 uppercase">{t('lossTrain')}</div>
           <div className="text-lg font-mono text-yellow-400">{loss.toFixed(4)}</div>
         </div>
         <div className="p-2 bg-green-400/10 border border-green-400/20 rounded">
-          <div className="text-[10px] text-green-400/60 uppercase">Accuracy (test)</div>
+          <div className="text-[10px] text-green-400/60 uppercase">{t('accuracyTest')}</div>
           <div className="text-lg font-mono text-green-400">{accuracy.toFixed(1)}%</div>
         </div>
       </div>
@@ -195,7 +197,7 @@ export default function CsvDataViewer({
         <div className="flex items-center justify-between">
           <div className="text-[10px] text-cyan-400/60 uppercase flex items-center gap-2">
             <Activity size={12} className={isTraining ? 'animate-pulse' : ''} />
-            <span>Fila #{globalIndex + 1}</span>
+            <span>{t('row')} #{globalIndex + 1}</span>
             <span className={`px-1.5 py-0.5 rounded text-[8px] ${isTrainRow ? 'bg-green-400/20 text-green-400' : 'bg-orange-400/20 text-orange-400'}`}>
               {isTrainRow ? 'TRAIN' : 'TEST'}
             </span>
@@ -209,7 +211,7 @@ export default function CsvDataViewer({
             }`}
           >
             <Play size={10} />
-            {autoPlay ? 'Pausar' : viewMode === 'train' ? 'Auto Train' : 'Auto Test'}
+            {autoPlay ? t('pauseAuto') : viewMode === 'train' ? t('autoTrain') : t('autoTest')}
           </button>
         </div>
         
@@ -217,7 +219,7 @@ export default function CsvDataViewer({
         <div className="flex items-stretch gap-2">
           {/* Inputs */}
           <div className="flex-1 p-2 bg-green-400/5 border border-green-400/20 rounded">
-            <div className="text-[9px] text-green-400/60 uppercase mb-2">Entradas</div>
+            <div className="text-[9px] text-green-400/60 uppercase mb-2">{t('inputsLabel')}</div>
             <div className="grid grid-cols-3 gap-1">
               {currentRow?.map((val, i) => (
                 <div key={i} className="flex flex-col items-center p-1 bg-green-400/5 rounded">
@@ -237,7 +239,7 @@ export default function CsvDataViewer({
           <div className="flex gap-2">
             {/* Prediction */}
             <div className="p-2 bg-cyan-400/5 border border-cyan-400/20 rounded min-w-[100px]">
-              <div className="text-[9px] text-cyan-400/60 uppercase mb-1">Predicción</div>
+              <div className="text-[9px] text-cyan-400/60 uppercase mb-1">{t('predictionLabel')}</div>
               <div className="flex flex-col items-center">
                 <span className="text-2xl font-mono text-cyan-400">
                   {currentPred !== undefined ? currentPred.toFixed(3) : '--'}
@@ -246,7 +248,7 @@ export default function CsvDataViewer({
                   <span className={`text-xs px-2 py-0.5 rounded mt-1 ${
                     currentPred > 0.5 ? 'bg-green-400/20 text-green-400' : 'bg-red-400/20 text-red-400'
                   }`}>
-                    {currentPred > 0.5 ? 'Sobrevive' : 'No sobrevive'}
+                    {currentPred > 0.5 ? t('survives') : t('doesNotSurvive')}
                   </span>
                 )}
               </div>
@@ -254,7 +256,7 @@ export default function CsvDataViewer({
             
             {/* Target */}
             <div className="p-2 bg-orange-400/5 border border-orange-400/20 rounded min-w-[100px]">
-              <div className="text-[9px] text-orange-400/60 uppercase mb-1">Real</div>
+              <div className="text-[9px] text-orange-400/60 uppercase mb-1">{t('realLabel')}</div>
               <div className="flex flex-col items-center">
                 <span className="text-2xl font-mono text-orange-400">
                   {currentTarget?.[0]?.toFixed(0) ?? '--'}
@@ -263,7 +265,7 @@ export default function CsvDataViewer({
                   <span className={`text-xs px-2 py-0.5 rounded mt-1 ${
                     currentTarget[0] > 0.5 ? 'bg-green-400/20 text-green-400' : 'bg-red-400/20 text-red-400'
                   }`}>
-                    {currentTarget[0] > 0.5 ? 'Sobrevive' : 'No sobrevive'}
+                    {currentTarget[0] > 0.5 ? t('survives') : t('doesNotSurvive')}
                   </span>
                 )}
               </div>
@@ -279,8 +281,8 @@ export default function CsvDataViewer({
               : 'bg-red-400/10 text-red-400 border border-red-400/30'
           }`}>
             {(currentPred > 0.5 ? 1 : 0) === (currentTarget[0] > 0.5 ? 1 : 0)
-              ? '✓ CORRECTO'
-              : '✗ INCORRECTO'}
+              ? `✓ ${t('correct')}`
+              : `✗ ${t('incorrect')}`}
           </div>
         )}
       </div>
@@ -306,7 +308,7 @@ export default function CsvDataViewer({
           />
           <span className="text-sm text-cyan-400/50">/ {viewData.count}</span>
           <span className="text-[10px] text-cyan-400/30">
-            ({viewMode === 'test' ? 'test' : 'train'})
+            ({viewMode === 'test' ? t('test') : t('training')})
           </span>
         </div>
         

@@ -133,6 +133,52 @@ const translations = {
     // Forward pass visualization
     forwardPass: 'Forward',
     forwardPassTooltip: 'Visualiza el flujo de la señal a través de la red durante una iteración',
+    
+    // App modes
+    appModeRegression: 'Regresión',
+    appModeClassification: 'Clasificación',
+    appModeRegressionDesc: '🧠 Backprop manual (educativo)',
+    appModeClassificationDesc: '📊 Clasificación con TensorFlow.js',
+    
+    // CSV Dataset
+    loadDatasetCsv: 'Cargar Dataset CSV',
+    selectDataset: 'Selecciona un dataset',
+    loadDataset: 'Cargar Dataset',
+    datasetLoaded: 'Dataset cargado',
+    loadingDataset: 'Cargando...',
+    inputs: 'Entradas',
+    outputs: 'Salidas',
+    rows: 'Filas',
+    noDatasetLoaded: 'Carga un dataset CSV desde el panel derecho',
+    datasetFolder: 'Carpeta: /public/datasets/',
+    
+    // CSV Data Viewer
+    training: 'Entrenamiento',
+    test: 'Test',
+    trainSplit: 'Train',
+    testSplit: 'Test',
+    trainRows: 'filas train',
+    testRows: 'filas test',
+    viewAll: 'Ver Todo',
+    viewTest: 'Solo Test',
+    autoTrain: 'Auto Train',
+    autoTest: 'Auto Test',
+    pauseAuto: 'Pausar',
+    row: 'Fila',
+    inputsLabel: 'Entradas',
+    predictionLabel: 'Predicción',
+    realLabel: 'Real',
+    correct: 'CORRECTO',
+    incorrect: 'INCORRECTO',
+    survives: 'Sobrevive',
+    doesNotSurvive: 'No sobrevive',
+    accuracy: 'Accuracy',
+    accuracyTest: 'Accuracy (test)',
+    lossTrain: 'Loss (train)',
+    
+    // Feature importance
+    featureImportance: 'Importancia de Features',
+    noImportanceData: 'Sin datos de importancia',
   },
   en: {
     // Header
@@ -261,6 +307,52 @@ const translations = {
     // Forward pass visualization
     forwardPass: 'Forward',
     forwardPassTooltip: 'Visualizes the signal flow through the network during an iteration',
+    
+    // App modes
+    appModeRegression: 'Regression',
+    appModeClassification: 'Classification',
+    appModeRegressionDesc: '🧠 Manual backprop (educational)',
+    appModeClassificationDesc: '📊 Classification with TensorFlow.js',
+    
+    // CSV Dataset
+    loadDatasetCsv: 'Load CSV Dataset',
+    selectDataset: 'Select a dataset',
+    loadDataset: 'Load Dataset',
+    datasetLoaded: 'Dataset loaded',
+    loadingDataset: 'Loading...',
+    inputs: 'Inputs',
+    outputs: 'Outputs',
+    rows: 'Rows',
+    noDatasetLoaded: 'Load a CSV dataset from the right panel',
+    datasetFolder: 'Folder: /public/datasets/',
+    
+    // CSV Data Viewer
+    training: 'Training',
+    test: 'Test',
+    trainSplit: 'Train',
+    testSplit: 'Test',
+    trainRows: 'train rows',
+    testRows: 'test rows',
+    viewAll: 'View All',
+    viewTest: 'Test Only',
+    autoTrain: 'Auto Train',
+    autoTest: 'Auto Test',
+    pauseAuto: 'Pause',
+    row: 'Row',
+    inputsLabel: 'Inputs',
+    predictionLabel: 'Prediction',
+    realLabel: 'Real',
+    correct: 'CORRECT',
+    incorrect: 'INCORRECT',
+    survives: 'Survives',
+    doesNotSurvive: 'Does not survive',
+    accuracy: 'Accuracy',
+    accuracyTest: 'Accuracy (test)',
+    lossTrain: 'Loss (train)',
+    
+    // Feature importance
+    featureImportance: 'Feature Importance',
+    noImportanceData: 'No importance data',
   },
 };
 

@@ -404,6 +404,42 @@ export class TensorFlowNetwork {
     return { weights, biases };
   }
 
+  // Calcular importancia de features basada en pesos
+  // Retorna un array con la importancia de cada feature de entrada
+  getFeatureImportance(featureNames?: string[]): { name: string; importance: number; normalizedImportance: number }[] {
+    if (!this.model || this.config.inputSize <= 1) {
+      return [];
+    }
+
+    const { weights } = this.getWeightsAndBiases();
+    
+    if (weights.length === 0) return [];
+    
+    // Pesos de la primera capa: weights[0][toNeuron][fromInput]
+    const firstLayerWeights = weights[0];
+    
+    // Calcular importancia como suma de valores absolutos de pesos
+    // desde cada input hacia todas las neuronas de la primera capa
+    const importance: number[] = new Array(this.config.inputSize).fill(0);
+    
+    for (let to = 0; to < firstLayerWeights.length; to++) {
+      for (let from = 0; from < this.config.inputSize; from++) {
+        importance[from] += Math.abs(firstLayerWeights[to][from]);
+      }
+    }
+    
+    // Normalizar para que sumen 100%
+    const total = importance.reduce((a, b) => a + b, 0);
+    const normalizedImportance = importance.map(v => total > 0 ? (v / total) * 100 : 0);
+    
+    // Crear resultado con nombres de features
+    return importance.map((imp, i) => ({
+      name: featureNames?.[i] || `Feature ${i + 1}`,
+      importance: imp,
+      normalizedImportance: normalizedImportance[i],
+    }));
+  }
+
   // Obtener activaciones intermedias de todas las capas para un input dado
   // Si x no se especifica, usa valores que producen activaciones más visibles
   getActivations(x?: number | number[]): { preActivation: number[]; activation: number[] }[] {

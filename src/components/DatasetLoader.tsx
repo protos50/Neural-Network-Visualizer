@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Database, Upload, FileSpreadsheet, Check, AlertCircle } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 interface DatasetInfo {
   name: string;
@@ -31,6 +32,7 @@ interface DatasetLoaderProps {
 }
 
 export default function DatasetLoader({ onDatasetLoad, disabled = false }: DatasetLoaderProps) {
+  const { t } = useI18n();
   const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +151,7 @@ export default function DatasetLoader({ onDatasetLoad, disabled = false }: Datas
       {/* Header */}
       <div className="flex items-center gap-2 text-xs text-cyan-400/70 uppercase tracking-wider">
         <Database size={14} />
-        <span>Cargar Dataset CSV</span>
+        <span>{t('loadDatasetCsv')}</span>
       </div>
 
       {/* Selector */}
@@ -160,10 +162,10 @@ export default function DatasetLoader({ onDatasetLoad, disabled = false }: Datas
           className="w-full bg-black/50 border border-cyan-400/30 rounded px-2 py-1.5 text-xs font-mono text-cyan-400 focus:border-cyan-400 focus:outline-none"
           disabled={disabled || loading}
         >
-          <option value="">-- Seleccionar dataset --</option>
+          <option value="">-- {t('selectDataset')} --</option>
           {datasets.map(d => (
             <option key={d.name} value={d.name}>
-              {d.name} ({d.rows} filas)
+              {d.name} ({d.rows} {t('rows')})
             </option>
           ))}
         </select>
@@ -172,19 +174,19 @@ export default function DatasetLoader({ onDatasetLoad, disabled = false }: Datas
         {selectedInfo && (
           <div className="p-2 bg-cyan-400/5 border border-cyan-400/20 rounded text-[10px] space-y-1">
             <div className="flex justify-between">
-              <span className="text-cyan-400/50">Entradas:</span>
+              <span className="text-cyan-400/50">{t('inputs')}:</span>
               <span className="text-green-400 font-mono">
                 {selectedInfo.inputSize} ({selectedInfo.inputCols.join(', ')})
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-cyan-400/50">Salidas:</span>
+              <span className="text-cyan-400/50">{t('outputs')}:</span>
               <span className="text-orange-400 font-mono">
                 {selectedInfo.outputSize} ({selectedInfo.outputCols.join(', ')})
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-cyan-400/50">Filas:</span>
+              <span className="text-cyan-400/50">{t('rows')}:</span>
               <span className="text-cyan-400 font-mono">{selectedInfo.rows}</span>
             </div>
           </div>
@@ -203,17 +205,17 @@ export default function DatasetLoader({ onDatasetLoad, disabled = false }: Datas
           {loading ? (
             <>
               <div className="w-3 h-3 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-              Cargando...
+              {t('loadingDataset')}
             </>
           ) : loadedDataset === selectedDataset ? (
             <>
               <Check size={14} />
-              Dataset cargado
+              {t('datasetLoaded')}
             </>
           ) : (
             <>
               <Upload size={14} />
-              Cargar Dataset
+              {t('loadDataset')}
             </>
           )}
         </button>
