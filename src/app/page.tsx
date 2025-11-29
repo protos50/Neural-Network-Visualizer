@@ -18,7 +18,8 @@ import TensorFlowPanel from '@/components/TensorFlowPanel';
 import DatasetPanel from '@/components/DatasetPanel';
 import ModeSelector, { type NetworkMode } from '@/components/ModeSelector';
 import { useI18n, LanguageSelector } from '@/lib/i18n';
-import { Brain, Waves, Github, GraduationCap, FlaskConical } from 'lucide-react';
+import { Brain, Waves, Github, GraduationCap, FlaskConical, Cpu } from 'lucide-react';
+import { useTrainingWorker } from '@/hooks/useTrainingWorker';
 
 const DEFAULT_CONFIG: NetworkConfig = {
   hiddenLayers: [8, 8],
@@ -77,6 +78,51 @@ export default function Home() {
   const [testIndex, setTestIndex] = useState(0);
   const [testPredictions, setTestPredictions] = useState<{ x: number; yTrue: number; yPred: number }[]>([]);
   
+  // Web Worker para entrenamiento
+  const [useWorker, setUseWorker] = useState(true);
+  const pendingTrainRef = useRef(false);
+  
+  // Callback para resultados del worker
+  const handleWorkerResult = useCallback((result: {
+    loss: number;
+    epoch: number;
+    predictions: number[];
+    weights: number[][][];
+    biases: number[][];
+    activations: { preActivation: number[]; activation: number[] }[];
+  }) => {
+    setPredictions(result.predictions);
+    setEpoch(result.epoch);
+    setLoss(result.loss);
+    setNetworkState(prev => ({
+      ...prev,
+      weights: result.weights,
+      biases: result.biases,
+      layers: result.activations.map(act => ({
+        preActivation: act.preActivation,
+        activation: act.activation.map(a => Math.abs(a)),
+      })),
+      loss: result.loss,
+      epoch: result.epoch,
+    }));
+    pendingTrainRef.current = false;
+    
+    // Auto-stop si converge
+    if (result.loss < 0.0005) {
+      setIsTraining(false);
+    }
+  }, []);
+  
+  const { 
+    isReady: workerReady, 
+    isSupported: workerSupported, 
+    initNetwork: initWorkerNetwork,
+    train: trainWithWorker,
+    reset: resetWorker,
+  } = useTrainingWorker({
+    onResult: handleWorkerResult,
+  });
+  
   // ==========================================
   // INICIALIZACIÓN
   // ==========================================
@@ -96,6 +142,11 @@ export default function Home() {
       setNetworkState(state);
       setEpoch(0);
       setLoss(1);
+    }
+    
+    // Inicializar worker si está soportado
+    if (workerSupported && useWorker) {
+      initWorkerNetwork(config);
     }
     
     // Cleanup TensorFlow al desmontar
@@ -211,23 +262,31 @@ export default function Home() {
       const epochsThisTick = Math.min(10, Math.max(1, Math.floor(speed)));
       
       // ========== MODO MANUAL ==========
-      if (networkMode === 'manual' && networkRef.current) {
-        let currentLoss = 0;
-        for (let i = 0; i < epochsThisTick; i++) {
-          currentLoss = networkRef.current.trainEpoch(dataset.X, dataset.Y);
+      if (networkMode === 'manual') {
+        // Usar Web Worker si está disponible y habilitado
+        if (useWorker && workerSupported && workerReady && !pendingTrainRef.current) {
+          pendingTrainRef.current = true;
+          trainWithWorker(dataset.X, dataset.Y, epochsThisTick);
         }
-        
-        const preds = networkRef.current.predict(dataset.X);
-        const state = networkRef.current.getState(dataset.X, dataset.Y);
-        
-        setPredictions(preds);
-        setNetworkState(state);
-        setEpoch(state.epoch);
-        setLoss(currentLoss);
-        
-        if (currentLoss < 0.0005) {
-          setIsTraining(false);
-          return;
+        // Fallback: entrenamiento en hilo principal
+        else if (!useWorker && networkRef.current) {
+          let currentLoss = 0;
+          for (let i = 0; i < epochsThisTick; i++) {
+            currentLoss = networkRef.current.trainEpoch(dataset.X, dataset.Y);
+          }
+          
+          const preds = networkRef.current.predict(dataset.X);
+          const state = networkRef.current.getState(dataset.X, dataset.Y);
+          
+          setPredictions(preds);
+          setNetworkState(state);
+          setEpoch(state.epoch);
+          setLoss(currentLoss);
+          
+          if (currentLoss < 0.0005) {
+            setIsTraining(false);
+            return;
+          }
         }
       }
       // ========== MODO TENSORFLOW.JS ==========
@@ -305,7 +364,7 @@ export default function Home() {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isTraining, speed, dataset, networkMode, tfConfig]);
+  }, [isTraining, speed, dataset, networkMode, tfConfig, useWorker, workerSupported, workerReady, trainWithWorker]);
   
   // ==========================================
   // HANDLERS MODO MANUAL
@@ -416,6 +475,10 @@ export default function Home() {
     
     if (networkMode === 'manual') {
       networkRef.current = new NeuralNetwork(config);
+      // Reiniciar worker también
+      if (useWorker && workerSupported) {
+        resetWorker(config);
+      }
       if (networkRef.current) {
         const preds = new Array(data.X.length).fill(0);
         setPredictions(preds);
@@ -465,7 +528,7 @@ export default function Home() {
         },
       });
     }
-  }, [config, tfConfig, networkMode, datasetConfig]);
+  }, [config, tfConfig, networkMode, datasetConfig, useWorker, workerSupported, resetWorker]);
   
   const handleStop = useCallback(() => {
     setIsTraining(false);
@@ -732,6 +795,30 @@ export default function Home() {
               ? '🧠 Backprop manual (educativo)' 
               : '⚡ TensorFlow.js (optimizado)'}
           </div>
+          {/* Toggle Web Worker (solo modo manual) */}
+          {networkMode === 'manual' && workerSupported && (
+            <button
+              onClick={() => {
+                setIsTraining(false);
+                setUseWorker(!useWorker);
+                if (!useWorker) {
+                  initWorkerNetwork(config);
+                }
+              }}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border transition-all ${
+                useWorker && workerReady
+                  ? 'bg-green-600/20 border-green-500/50 text-green-400'
+                  : useWorker && !workerReady
+                    ? 'bg-yellow-600/20 border-yellow-500/50 text-yellow-400'
+                    : 'bg-gray-600/20 border-gray-500/30 text-gray-400'
+              }`}
+            >
+              <Cpu className="w-3 h-3" />
+              {useWorker 
+                ? (workerReady ? 'Worker ✓' : 'Worker...') 
+                : 'Worker OFF'}
+            </button>
+          )}
         </div>
       </div>
       

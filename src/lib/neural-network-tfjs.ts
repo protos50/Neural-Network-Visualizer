@@ -392,7 +392,7 @@ export class TensorFlowNetwork {
     });
 
     // Obtener activaciones de cada capa
-    let currentInput = tf.tensor2d([[x]]);
+    let currentInput: tf.Tensor = tf.tensor2d([[x]]);
     
     for (let i = 0; i < this.model.layers.length; i++) {
       const layer = this.model.layers[i];
