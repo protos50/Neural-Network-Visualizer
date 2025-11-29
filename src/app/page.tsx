@@ -16,10 +16,12 @@ import NeuralNetworkViz from '@/components/NeuralNetworkViz';
 import TrainingPanel from '@/components/TrainingPanel';
 import TensorFlowPanel from '@/components/TensorFlowPanel';
 import DatasetPanel from '@/components/DatasetPanel';
+import CsvDataViewer from '@/components/CsvDataViewer';
 import ModeSelector, { type NetworkMode } from '@/components/ModeSelector';
 import { useI18n, LanguageSelector } from '@/lib/i18n';
-import { Brain, Waves, Github, GraduationCap, FlaskConical, Cpu } from 'lucide-react';
+import { Brain, Waves, Github, GraduationCap, FlaskConical, Cpu, Zap, LineChart, Database } from 'lucide-react';
 import { useTrainingWorker } from '@/hooks/useTrainingWorker';
+import { getBackend } from '@/lib/neural-network-tfjs';
 
 const DEFAULT_CONFIG: NetworkConfig = {
   hiddenLayers: [8, 8],
@@ -78,9 +80,29 @@ export default function Home() {
   const [testIndex, setTestIndex] = useState(0);
   const [testPredictions, setTestPredictions] = useState<{ x: number; yTrue: number; yPred: number }[]>([]);
   
-  // Web Worker para entrenamiento
+  // Web Worker para entrenamiento (solo modo manual)
   const [useWorker, setUseWorker] = useState(true);
   const pendingTrainRef = useRef(false);
+  
+  // Backend de TensorFlow.js (webgl = GPU, cpu = CPU)
+  const [tfBackend, setTfBackend] = useState<string>('...');
+  
+  // Modo de aplicación: 'regression' (funciones matemáticas) o 'classification' (datasets CSV)
+  const [appMode, setAppMode] = useState<'regression' | 'classification'>('regression');
+  
+  // Dataset CSV cargado (para TensorFlow)
+  const [csvDataset, setCsvDataset] = useState<{
+    X: number[][];
+    Y: number[][];
+    inputSize: number;
+    outputSize: number;
+    inputCols: string[];
+    outputCols: string[];
+    name: string;
+  } | null>(null);
+  
+  // Train/Test split (%)
+  const [trainSplit, setTrainSplit] = useState(80);
   
   // Callback para resultados del worker
   const handleWorkerResult = useCallback((result: {
@@ -176,6 +198,9 @@ export default function Home() {
       // Crear nueva red TensorFlow.js
       tfNetworkRef.current = new TensorFlowNetwork(tfConfig);
       
+      // Obtener backend de TensorFlow
+      setTimeout(() => setTfBackend(getBackend()), 100);
+      
       const preds = new Array(data.X.length).fill(0);
       setPredictions(preds);
       setEpoch(0);
@@ -183,7 +208,7 @@ export default function Home() {
       
       // Obtener pesos y biases iniciales
       const { weights, biases } = tfNetworkRef.current.getWeightsAndBiases();
-      const activations = tfNetworkRef.current.getActivations(0);
+      const activations = tfNetworkRef.current.getActivations();
       const tfArch = tfNetworkRef.current.getArchitecture();
       const hiddenAct = tfConfig.layers[0]?.activation || 'swish';
       const outputAct = tfConfig.layers[tfConfig.layers.length - 1]?.activation || 'linear';
@@ -258,8 +283,8 @@ export default function Home() {
       // Reset acumulador
       accumulatedTime = 0;
       
-      // Calcular épocas: limitar a 10 por frame para mantener fluidez
-      const epochsThisTick = Math.min(10, Math.max(1, Math.floor(speed)));
+      // Calcular épocas por tick según velocidad (sin límite)
+      const epochsThisTick = Math.max(1, Math.floor(speed));
       
       // ========== MODO MANUAL ==========
       if (networkMode === 'manual') {
@@ -292,15 +317,32 @@ export default function Home() {
       // ========== MODO TENSORFLOW.JS ==========
       else if (networkMode === 'tensorflow' && tfNetworkRef.current) {
         try {
+          // Usar csvDataset si está cargado, sino usar dataset normal
+          let trainX: number[] | number[][];
+          let trainY: number[] | number[][];
+          let allX: number[] | number[][];
+          
+          if (csvDataset) {
+            // Con CSV: usar split para entrenamiento
+            const splitIdx = Math.floor((csvDataset.X.length * trainSplit) / 100);
+            trainX = csvDataset.X.slice(0, splitIdx);
+            trainY = csvDataset.Y.slice(0, splitIdx);
+            allX = csvDataset.X; // Predecir todo para visualización
+          } else {
+            trainX = dataset.X;
+            trainY = dataset.Y;
+            allX = dataset.X;
+          }
+          
           const currentLoss = await tfNetworkRef.current.trainEpochs(
-            dataset.X,
-            dataset.Y,
+            trainX,
+            trainY,
             epochsThisTick
           );
           
           if (!isRunning) return;
           
-          const preds = tfNetworkRef.current.predict(dataset.X);
+          const preds = tfNetworkRef.current.predict(allX);
           const currentEpoch = tfNetworkRef.current.epoch;
           
           setPredictions(preds);
@@ -310,8 +352,8 @@ export default function Home() {
           // Obtener pesos y biases reales del modelo TF.js
           const { weights, biases } = tfNetworkRef.current.getWeightsAndBiases();
           
-          // Obtener activaciones reales para un punto de prueba (x=0)
-          const activations = tfNetworkRef.current.getActivations(0);
+          // Obtener activaciones reales para visualización
+          const activations = tfNetworkRef.current.getActivations();
           
           const tfArch = tfNetworkRef.current.getArchitecture();
           const hiddenAct = tfConfig.layers[0]?.activation || 'swish';
@@ -364,7 +406,7 @@ export default function Home() {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isTraining, speed, dataset, networkMode, tfConfig, useWorker, workerSupported, workerReady, trainWithWorker]);
+  }, [isTraining, speed, dataset, networkMode, tfConfig, csvDataset, trainSplit, useWorker, workerSupported, workerReady, trainWithWorker]);
   
   // ==========================================
   // HANDLERS MODO MANUAL
@@ -434,7 +476,7 @@ export default function Home() {
     
     // Obtener pesos y biases iniciales
     const { weights, biases } = tfNetworkRef.current.getWeightsAndBiases();
-    const activations = tfNetworkRef.current.getActivations(0);
+    const activations = tfNetworkRef.current.getActivations();
     const tfArch = tfNetworkRef.current.getArchitecture();
     const hiddenAct = updatedConfig.layers[0]?.activation || 'swish';
     const outputAct = updatedConfig.layers[updatedConfig.layers.length - 1]?.activation || 'linear';
@@ -500,7 +542,7 @@ export default function Home() {
       
       // Obtener pesos y biases iniciales
       const { weights, biases } = tfNetworkRef.current.getWeightsAndBiases();
-      const activations = tfNetworkRef.current.getActivations(0);
+      const activations = tfNetworkRef.current.getActivations();
       const tfArch = tfNetworkRef.current.getArchitecture();
       const hiddenAct = tfConfig.layers[0]?.activation || 'swish';
       const outputAct = tfConfig.layers[tfConfig.layers.length - 1]?.activation || 'linear';
@@ -560,7 +602,7 @@ export default function Home() {
       tfNetworkRef.current.dispose();
       tfNetworkRef.current = new TensorFlowNetwork(tfConfig);
       const { weights, biases } = tfNetworkRef.current.getWeightsAndBiases();
-      const activations = tfNetworkRef.current.getActivations(0);
+      const activations = tfNetworkRef.current.getActivations();
       const tfArch = tfNetworkRef.current.getArchitecture();
       setNetworkState(prev => ({
         ...prev,
@@ -588,6 +630,81 @@ export default function Home() {
     setEpoch(0);
     setLoss(1);
   }, []);
+
+  // Handler para cargar dataset CSV (TensorFlow mode)
+  const handleCsvDatasetLoad = useCallback((loadedDataset: {
+    X: number[][];
+    Y: number[][];
+    inputCols: string[];
+    outputCols: string[];
+    inputSize: number;
+    outputSize: number;
+    rows: number;
+    name: string;
+  }) => {
+    setIsTraining(false);
+    setIsTestMode(false);
+    
+    // Guardar dataset CSV
+    setCsvDataset({
+      X: loadedDataset.X,
+      Y: loadedDataset.Y,
+      inputSize: loadedDataset.inputSize,
+      outputSize: loadedDataset.outputSize,
+      inputCols: loadedDataset.inputCols,
+      outputCols: loadedDataset.outputCols,
+      name: loadedDataset.name,
+    });
+    
+    // Actualizar configuración TF con nueva arquitectura
+    const newLayers = [
+      ...tfConfig.layers.slice(0, -1), // Mantener capas ocultas
+      { units: loadedDataset.outputSize, activation: tfConfig.layers[tfConfig.layers.length - 1].activation },
+    ];
+    
+    const newTfConfig = {
+      ...tfConfig,
+      inputSize: loadedDataset.inputSize,
+      outputSize: loadedDataset.outputSize,
+      layers: newLayers,
+    };
+    setTFConfig(newTfConfig);
+    
+    // Recrear red TensorFlow con nueva arquitectura
+    if (tfNetworkRef.current) {
+      tfNetworkRef.current.dispose();
+    }
+    tfNetworkRef.current = new TensorFlowNetwork(newTfConfig);
+    
+    // Resetear estado
+    setEpoch(0);
+    setLoss(1);
+    setPredictions(new Array(loadedDataset.rows).fill(0));
+    
+    // Actualizar estado de red
+    const { weights, biases } = tfNetworkRef.current.getWeightsAndBiases();
+    const activations = tfNetworkRef.current.getActivations();
+    const tfArch = tfNetworkRef.current.getArchitecture();
+    
+    setNetworkState({
+      weights,
+      biases,
+      layers: activations.map(act => ({
+        preActivation: act.preActivation,
+        activation: act.activation.map(a => Math.abs(a)),
+      })),
+      loss: 1,
+      epoch: 0,
+      config: {
+        hiddenLayers: tfArch.slice(1, -1),
+        hiddenActivation: newTfConfig.layers[0]?.activation as any || 'swish',
+        outputActivation: newTfConfig.layers[newTfConfig.layers.length - 1]?.activation as any || 'linear',
+        learningRate: newTfConfig.learningRate,
+        momentum: 0,
+      },
+    });
+    
+  }, [tfConfig]);
 
   const handleToggleTestMode = useCallback(() => {
     if (!isTestMode) {
@@ -780,20 +897,72 @@ export default function Home() {
         {/* Language selector + Mode selector */}
         <div className="flex flex-col items-center gap-2">
           <LanguageSelector />
-          <ModeSelector 
-            mode={networkMode} 
-            onModeChange={handleModeChange}
-            disabled={isTraining}
-          />
+          
+          {/* Selector de modo de aplicación */}
+          <div className="flex rounded-lg overflow-hidden border border-crt-green/30">
+            <button
+              onClick={() => {
+                if (appMode !== 'regression') {
+                  setIsTraining(false);
+                  setCsvDataset(null);
+                  setAppMode('regression');
+                }
+              }}
+              disabled={isTraining}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-all ${
+                appMode === 'regression'
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <LineChart size={14} />
+              Regresión
+            </button>
+            <button
+              onClick={() => {
+                if (appMode !== 'classification') {
+                  setIsTraining(false);
+                  setAppMode('classification');
+                  // Forzar TensorFlow en modo clasificación
+                  if (networkMode === 'manual') {
+                    handleModeChange('tensorflow');
+                  }
+                }
+              }}
+              disabled={isTraining}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-all ${
+                appMode === 'classification'
+                  ? 'bg-cyan-500/20 text-cyan-400'
+                  : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <Database size={14} />
+              Clasificación
+            </button>
+          </div>
+          
+          {/* Selector Manual/TensorFlow (solo en modo regresión) */}
+          {appMode === 'regression' && (
+            <ModeSelector 
+              mode={networkMode} 
+              onModeChange={handleModeChange}
+              disabled={isTraining}
+            />
+          )}
+          
           {/* Indicador de modo activo */}
           <div className={`text-[10px] px-2 py-0.5 rounded ${
-            networkMode === 'manual' 
-              ? 'bg-crt-green/10 text-crt-green/60 border border-crt-green/30' 
-              : 'bg-cyan-400/10 text-cyan-400/60 border border-cyan-400/30'
+            appMode === 'classification'
+              ? 'bg-cyan-400/10 text-cyan-400/60 border border-cyan-400/30'
+              : networkMode === 'manual' 
+                ? 'bg-crt-green/10 text-crt-green/60 border border-crt-green/30' 
+                : 'bg-cyan-400/10 text-cyan-400/60 border border-cyan-400/30'
           }`}>
-            {networkMode === 'manual' 
-              ? '🧠 Backprop manual (educativo)' 
-              : '⚡ TensorFlow.js (optimizado)'}
+            {appMode === 'classification'
+              ? '📊 Clasificación con TensorFlow.js'
+              : networkMode === 'manual' 
+                ? '🧠 Backprop manual (educativo)' 
+                : '⚡ TensorFlow.js (optimizado)'}
           </div>
           {/* Toggle Web Worker (solo modo manual) */}
           {networkMode === 'manual' && workerSupported && (
@@ -819,6 +988,24 @@ export default function Home() {
                 : 'Worker OFF'}
             </button>
           )}
+          
+          {/* Indicador de backend TensorFlow (solo modo tensorflow) */}
+          {networkMode === 'tensorflow' && (
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border ${
+              tfBackend === 'webgl'
+                ? 'bg-purple-600/20 border-purple-500/50 text-purple-400'
+                : tfBackend === 'cpu'
+                  ? 'bg-orange-600/20 border-orange-500/50 text-orange-400'
+                  : 'bg-gray-600/20 border-gray-500/30 text-gray-400'
+            }`}>
+              <Zap className="w-3 h-3" />
+              {tfBackend === 'webgl' 
+                ? 'GPU (WebGL)' 
+                : tfBackend === 'cpu' 
+                  ? 'CPU' 
+                  : tfBackend}
+            </div>
+          )}
         </div>
       </div>
       
@@ -826,76 +1013,132 @@ export default function Home() {
       <div className="max-w-[1400px] mx-auto flex-1">
         {/* Fila superior: Osciloscopio + Panel de Control */}
         <div className="flex flex-col lg:flex-row gap-4 justify-center items-start mb-4">
-          {/* Oscilloscope */}
+          {/* Visualización según modo de aplicación */}
           <div className="flex-shrink-0">
-            <div className="text-xs text-crt-green/50 uppercase tracking-wider mb-1 text-center">
-              📊 {t('functionApproximation')}
-            </div>
-            <OscilloscopeCanvas
-              dataPoints={dataPoints}
-              predictions={predictionPoints}
-              trueSine={trueSinePoints}
-              width={750}
-              height={400}
-            />
-            
-            {/* Legend */}
-            <div className="flex justify-center gap-4 mt-2 text-[10px]">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-1 rounded" style={{ background: 'rgba(0, 255, 65, 0.8)', boxShadow: '0 0 5px rgba(0,255,65,0.8)' }} />
-                <span className="text-crt-green/70">{t('dataWithNoise')}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-1 rounded" style={{ background: 'linear-gradient(90deg, rgba(150,255,150,0.9), rgba(0,255,65,0.9))', boxShadow: '0 0 8px rgba(0,255,65,0.6)' }} />
-                <span className="text-crt-green/70">{t('networkPrediction')}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-1 rounded border border-dashed border-yellow-400/70" />
-                <span className="text-crt-green/70">{t('realSine')}</span>
-              </div>
-            </div>
+            {appMode === 'classification' ? (
+              /* Modo Clasificación: Visualizador de datos CSV */
+              csvDataset ? (
+                <CsvDataViewer
+                  X={csvDataset.X}
+                  Y={csvDataset.Y}
+                  predictions={predictions}
+                  inputCols={csvDataset.inputCols}
+                  outputCols={csvDataset.outputCols}
+                  inputSize={csvDataset.inputSize}
+                  outputSize={csvDataset.outputSize}
+                  trainSplit={trainSplit}
+                  onTrainSplitChange={setTrainSplit}
+                  isTraining={isTraining}
+                  epoch={epoch}
+                  loss={loss}
+                  datasetName={csvDataset.name}
+                />
+              ) : (
+                /* Placeholder cuando no hay dataset cargado */
+                <div className="w-[750px] h-[400px] bg-black/60 border border-cyan-400/30 rounded-lg flex flex-col items-center justify-center">
+                  <Database className="w-16 h-16 text-cyan-400/30 mb-4" />
+                  <p className="text-cyan-400/50 text-sm">Carga un dataset CSV desde el panel derecho</p>
+                  <p className="text-cyan-400/30 text-xs mt-2">Carpeta: /public/datasets/</p>
+                </div>
+              )
+            ) : (
+              /* Modo Regresión: Osciloscopio para funciones matemáticas */
+              <>
+                <div className="text-xs text-crt-green/50 uppercase tracking-wider mb-1 text-center">
+                  📊 {t('functionApproximation')}
+                </div>
+                <OscilloscopeCanvas
+                  dataPoints={dataPoints}
+                  predictions={predictionPoints}
+                  trueSine={trueSinePoints}
+                  width={750}
+                  height={400}
+                  xMin={datasetConfig.xMin}
+                  xMax={datasetConfig.xMax}
+                  yMin={-1.5}
+                  yMax={1.5}
+                />
+                
+                {/* Legend */}
+                <div className="flex justify-center gap-4 mt-2 text-[10px]">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-1 rounded" style={{ background: 'rgba(0, 255, 65, 0.8)', boxShadow: '0 0 5px rgba(0,255,65,0.8)' }} />
+                    <span className="text-crt-green/70">{t('dataWithNoise')}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-1 rounded" style={{ background: 'linear-gradient(90deg, rgba(150,255,150,0.9), rgba(0,255,65,0.9))', boxShadow: '0 0 8px rgba(0,255,65,0.6)' }} />
+                    <span className="text-crt-green/70">{t('networkPrediction')}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-1 rounded border border-dashed border-yellow-400/70" />
+                    <span className="text-crt-green/70">{t('realSine')}</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           
-          {/* Panel de controles - condicional según modo */}
+          {/* Panel de controles - condicional según modo de aplicación */}
           <div className="flex flex-col gap-3">
-            {networkMode === 'manual' ? (
-              <TrainingPanel
-                epoch={epoch}
-                loss={loss}
-                isTraining={isTraining}
-                speed={speed}
-                config={config}
-                onToggleTraining={() => !isTestMode && setIsTraining(!isTraining)}
-                onReset={handleReset}
-                onStop={handleStop}
-                onSpeedChange={setSpeed}
-                onConfigChange={handleConfigChange}
-              />
-            ) : (
+            {appMode === 'classification' ? (
+              /* Modo Clasificación: Solo TensorFlow con cargador de datasets */
               <TensorFlowPanel
                 epoch={epoch}
                 loss={loss}
                 isTraining={isTraining}
                 speed={speed}
                 config={tfConfig}
-                onToggleTraining={() => !isTestMode && setIsTraining(!isTraining)}
+                onToggleTraining={() => setIsTraining(!isTraining)}
                 onReset={handleReset}
                 onStop={handleStop}
                 onSpeedChange={setSpeed}
                 onConfigChange={handleTFConfigChange}
-                disabled={isTestMode}
+                onDatasetLoad={handleCsvDatasetLoad}
+                disabled={false}
               />
+            ) : (
+              /* Modo Regresión: Manual o TensorFlow */
+              <>
+                {networkMode === 'manual' ? (
+                  <TrainingPanel
+                    epoch={epoch}
+                    loss={loss}
+                    isTraining={isTraining}
+                    speed={speed}
+                    config={config}
+                    onToggleTraining={() => !isTestMode && setIsTraining(!isTraining)}
+                    onReset={handleReset}
+                    onStop={handleStop}
+                    onSpeedChange={setSpeed}
+                    onConfigChange={handleConfigChange}
+                  />
+                ) : (
+                  <TensorFlowPanel
+                    epoch={epoch}
+                    loss={loss}
+                    isTraining={isTraining}
+                    speed={speed}
+                    config={tfConfig}
+                    onToggleTraining={() => !isTestMode && setIsTraining(!isTraining)}
+                    onReset={handleReset}
+                    onStop={handleStop}
+                    onSpeedChange={setSpeed}
+                    onConfigChange={handleTFConfigChange}
+                    disabled={isTestMode}
+                  />
+                )}
+                
+                {/* Panel de configuración de función matemática */}
+                <DatasetPanel
+                  config={datasetConfig}
+                  onConfigChange={handleDatasetConfigChange}
+                  onImportCSV={handleImportCSV}
+                  disabled={isTraining}
+                  isTestMode={isTestMode}
+                  onToggleTestMode={handleToggleTestMode}
+                />
+              </>
             )}
-            
-            {/* Panel de Dataset */}
-            <DatasetPanel
-              config={datasetConfig}
-              onConfigChange={handleDatasetConfigChange}
-              onImportCSV={handleImportCSV}
-              disabled={isTraining}
-              isTestMode={isTestMode}
-              onToggleTestMode={handleToggleTestMode}
-            />
             
             {/* Indicador de modo test */}
             {isTestMode && (

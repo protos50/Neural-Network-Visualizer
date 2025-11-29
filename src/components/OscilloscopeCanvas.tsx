@@ -8,6 +8,10 @@ interface OscilloscopeCanvasProps {
   trueSine: { x: number; y: number }[];
   width?: number;
   height?: number;
+  xMin?: number;
+  xMax?: number;
+  yMin?: number;
+  yMax?: number;
 }
 
 export default function OscilloscopeCanvas({
@@ -16,6 +20,10 @@ export default function OscilloscopeCanvas({
   trueSine,
   width = 800,
   height = 500,
+  xMin = -6,
+  xMax = 6,
+  yMin = -1.5,
+  yMax = 1.5,
 }: OscilloscopeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
@@ -24,14 +32,17 @@ export default function OscilloscopeCanvas({
   // Convertir coordenadas de datos a coordenadas de canvas
   const toCanvasCoords = useCallback((x: number, y: number) => {
     const padding = 40;
-    const xRange = { min: -6.5, max: 6.5 };
-    const yRange = { min: -1.5, max: 1.5 };
+    // Agregar margen del 5% para que los puntos no toquen los bordes
+    const xMargin = (xMax - xMin) * 0.05;
+    const yMargin = (yMax - yMin) * 0.1;
+    const xRange = { min: xMin - xMargin, max: xMax + xMargin };
+    const yRange = { min: yMin - yMargin, max: yMax + yMargin };
     
     const canvasX = padding + ((x - xRange.min) / (xRange.max - xRange.min)) * (width - 2 * padding);
     const canvasY = height - padding - ((y - yRange.min) / (yRange.max - yRange.min)) * (height - 2 * padding);
     
     return { x: canvasX, y: canvasY };
-  }, [width, height]);
+  }, [width, height, xMin, xMax, yMin, yMax]);
 
   // Dibujar grilla de fondo estilo osciloscopio
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D, time: number) => {
@@ -89,12 +100,12 @@ export default function OscilloscopeCanvas({
     // Labels
     ctx.fillStyle = 'rgba(0, 255, 65, 0.5)';
     ctx.font = '10px monospace';
-    ctx.fillText('-6', padding - 5, height - padding + 15);
-    ctx.fillText('6', width - padding - 5, height - padding + 15);
-    ctx.fillText('1', zeroX + 5, padding + 5);
-    ctx.fillText('-1', zeroX + 5, height - padding - 5);
+    ctx.fillText(xMin.toString(), padding - 5, height - padding + 15);
+    ctx.fillText(xMax.toString(), width - padding - 10, height - padding + 15);
+    ctx.fillText(yMax.toFixed(1), zeroX + 5, padding + 5);
+    ctx.fillText(yMin.toFixed(1), zeroX + 5, height - padding - 5);
     ctx.fillText('0', zeroX + 5, zeroY - 5);
-  }, [width, height, toCanvasCoords]);
+  }, [width, height, xMin, xMax, yMin, yMax, toCanvasCoords]);
 
   // Dibujar puntos del dataset con ruido
   const drawDataPoints = useCallback((ctx: CanvasRenderingContext2D, time: number) => {

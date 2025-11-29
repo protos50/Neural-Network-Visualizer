@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Square, Zap, ZapOff, Info, ChevronDown, ChevronUp, Plus, X, Cpu } from 'lucide-react';
+import DatasetLoader from './DatasetLoader';
 import type { TFModelConfig, TFActivation, OptimizerName, LossFn } from '@/lib/neural-network-tfjs';
 import { 
   ALLOWED_ACTIVATIONS, 
@@ -12,6 +13,17 @@ import {
   lossDescriptions
 } from '@/lib/neural-network-tfjs';
 import { useI18n } from '@/lib/i18n';
+
+interface LoadedDataset {
+  X: number[][];
+  Y: number[][];
+  inputCols: string[];
+  outputCols: string[];
+  inputSize: number;
+  outputSize: number;
+  rows: number;
+  name: string;
+}
 
 interface TensorFlowPanelProps {
   // Estado del entrenamiento
@@ -27,6 +39,7 @@ interface TensorFlowPanelProps {
   onStop?: () => void;
   onSpeedChange: (speed: number) => void;
   onConfigChange: (config: Partial<TFModelConfig>) => void;
+  onDatasetLoad?: (dataset: LoadedDataset) => void;
   disabled?: boolean;
 }
 
@@ -63,13 +76,14 @@ export default function TensorFlowPanel({
   onStop,
   onSpeedChange,
   onConfigChange,
+  onDatasetLoad,
   disabled = false,
 }: TensorFlowPanelProps) {
   const { t } = useI18n();
   const [showArchitecture, setShowArchitecture] = useState(false);
 
-  // Arquitectura como string
-  const architectureStr = `1 → ${config.layers.map(l => l.units).join(' → ')}`;
+  // Arquitectura como string (usa inputSize del config)
+  const architectureStr = `${config.inputSize || 1} → ${config.layers.map(l => l.units).join(' → ')}`;
   
   // Cambiar activación de una capa específica
   const handleLayerActivationChange = (layerIndex: number, activation: TFActivation) => {
@@ -100,6 +114,23 @@ export default function TensorFlowPanel({
     if (config.layers.length <= 2) return; // Mínimo: 1 hidden + 1 output
     const newLayers = config.layers.filter((_, i) => i !== layerIndex);
     onConfigChange({ layers: newLayers });
+  };
+
+  // Cambiar tamaño de entrada
+  const handleInputSizeChange = (size: number) => {
+    if (size < 1 || size > 32) return;
+    onConfigChange({ inputSize: size });
+  };
+
+  // Cambiar tamaño de salida (actualiza última capa)
+  const handleOutputSizeChange = (size: number) => {
+    if (size < 1 || size > 32) return;
+    const newLayers = [...config.layers];
+    newLayers[newLayers.length - 1] = { 
+      ...newLayers[newLayers.length - 1], 
+      units: size 
+    };
+    onConfigChange({ outputSize: size, layers: newLayers });
   };
 
   return (
@@ -332,65 +363,117 @@ export default function TensorFlowPanel({
         
         {showArchitecture && (
           <div className="mt-3 space-y-3">
-            {/* Input layer (fijo) */}
-            <div className="p-2 bg-cyan-400/5 border border-cyan-400/20 rounded">
-              <div className="text-[10px] text-cyan-400/50 uppercase">Input Layer</div>
-              <div className="text-xs text-cyan-400">1 neurona (x)</div>
-            </div>
-            
-            {/* Capas configurables */}
-            {config.layers.map((layer, idx) => {
-              const isOutput = idx === config.layers.length - 1;
-              return (
-                <div key={idx} className="p-2 bg-cyan-400/5 border border-cyan-400/20 rounded">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="text-[10px] text-cyan-400/50 uppercase">
-                      {isOutput ? 'Output Layer' : `Hidden Layer ${idx + 1}`}
-                    </div>
-                    {!isOutput && config.layers.length > 2 && (
-                      <button
-                        onClick={() => handleRemoveLayer(idx)}
-                        className="text-red-400/70 hover:text-red-400 transition-colors"
-                        disabled={disabled}
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Neuronas */}
-                    <div>
-                      <div className="text-[9px] text-cyan-400/40 mb-1">Neuronas</div>
-                      <input
-                        type="number"
-                        min={1}
-                        max={isOutput ? 1 : 128}
-                        value={layer.units}
-                        onChange={(e) => handleLayerUnitsChange(idx, parseInt(e.target.value) || 1)}
-                        className="w-full bg-black/50 border border-cyan-400/30 rounded px-2 py-1 text-xs font-mono text-cyan-400 focus:border-cyan-400 focus:outline-none"
-                        disabled={disabled || isOutput}
-                      />
-                    </div>
-                    
-                    {/* Activación */}
-                    <div>
-                      <div className="text-[9px] text-cyan-400/40 mb-1">Activación</div>
-                      <select
-                        value={layer.activation}
-                        onChange={(e) => handleLayerActivationChange(idx, e.target.value as TFActivation)}
-                        className="w-full bg-black/50 border border-cyan-400/30 rounded px-2 py-1 text-xs font-mono text-cyan-400 focus:border-cyan-400 focus:outline-none"
-                        disabled={disabled}
-                      >
-                        {ALLOWED_ACTIVATIONS.map(act => (
-                          <option key={act} value={act}>{act}</option>
-                        ))}
-                      </select>
-                    </div>
+            {/* Input layer (configurable) */}
+            <div className="p-2 bg-green-400/5 border border-green-400/20 rounded">
+              <div className="text-[10px] text-green-400/50 uppercase mb-2">Input Layer</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-[9px] text-green-400/40 mb-1">Neuronas entrada</div>
+                  <input
+                    type="number"
+                    min={1}
+                    max={32}
+                    value={config.inputSize || 1}
+                    onChange={(e) => handleInputSizeChange(parseInt(e.target.value) || 1)}
+                    className="w-full bg-black/50 border border-green-400/30 rounded px-2 py-1 text-xs font-mono text-green-400 focus:border-green-400 focus:outline-none"
+                    disabled={disabled}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <div className="text-[9px] text-green-400/40 pb-1.5">
+                    {(config.inputSize || 1) === 1 ? '(x)' : `(x₁...x${config.inputSize})`}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            </div>
+            
+            {/* Capas ocultas configurables */}
+            {config.layers.slice(0, -1).map((layer, idx) => (
+              <div key={idx} className="p-2 bg-cyan-400/5 border border-cyan-400/20 rounded">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="text-[10px] text-cyan-400/50 uppercase">
+                    Hidden Layer {idx + 1}
+                  </div>
+                  {config.layers.length > 2 && (
+                    <button
+                      onClick={() => handleRemoveLayer(idx)}
+                      className="text-red-400/70 hover:text-red-400 transition-colors"
+                      disabled={disabled}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Neuronas */}
+                  <div>
+                    <div className="text-[9px] text-cyan-400/40 mb-1">Neuronas</div>
+                    <input
+                      type="number"
+                      min={1}
+                      max={128}
+                      value={layer.units}
+                      onChange={(e) => handleLayerUnitsChange(idx, parseInt(e.target.value) || 1)}
+                      className="w-full bg-black/50 border border-cyan-400/30 rounded px-2 py-1 text-xs font-mono text-cyan-400 focus:border-cyan-400 focus:outline-none"
+                      disabled={disabled}
+                    />
+                  </div>
+                  
+                  {/* Activación */}
+                  <div>
+                    <div className="text-[9px] text-cyan-400/40 mb-1">Activación</div>
+                    <select
+                      value={layer.activation}
+                      onChange={(e) => handleLayerActivationChange(idx, e.target.value as TFActivation)}
+                      className="w-full bg-black/50 border border-cyan-400/30 rounded px-2 py-1 text-xs font-mono text-cyan-400 focus:border-cyan-400 focus:outline-none"
+                      disabled={disabled}
+                    >
+                      {ALLOWED_ACTIVATIONS.map(act => (
+                        <option key={act} value={act}>{act}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {/* Output layer (configurable) */}
+            <div className="p-2 bg-orange-400/5 border border-orange-400/20 rounded">
+              <div className="text-[10px] text-orange-400/50 uppercase mb-2">Output Layer</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-[9px] text-orange-400/40 mb-1">Neuronas salida</div>
+                  <input
+                    type="number"
+                    min={1}
+                    max={32}
+                    value={config.outputSize || config.layers[config.layers.length - 1].units}
+                    onChange={(e) => handleOutputSizeChange(parseInt(e.target.value) || 1)}
+                    className="w-full bg-black/50 border border-orange-400/30 rounded px-2 py-1 text-xs font-mono text-orange-400 focus:border-orange-400 focus:outline-none"
+                    disabled={disabled}
+                  />
+                </div>
+                
+                {/* Activación output */}
+                <div>
+                  <div className="text-[9px] text-orange-400/40 mb-1">Activación</div>
+                  <select
+                    value={config.layers[config.layers.length - 1].activation}
+                    onChange={(e) => handleLayerActivationChange(config.layers.length - 1, e.target.value as TFActivation)}
+                    className="w-full bg-black/50 border border-orange-400/30 rounded px-2 py-1 text-xs font-mono text-orange-400 focus:border-orange-400 focus:outline-none"
+                    disabled={disabled}
+                  >
+                    {ALLOWED_ACTIVATIONS.map(act => (
+                      <option key={act} value={act}>{act}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="text-[9px] text-orange-400/40 mt-1">
+                {(config.outputSize || 1) === 1 ? '(ŷ)' : `(ŷ₁...ŷ${config.outputSize})`}
+              </div>
+            </div>
             
             {/* Botón agregar capa */}
             {config.layers.length < 6 && (
@@ -406,6 +489,16 @@ export default function TensorFlowPanel({
           </div>
         )}
       </div>
+      
+      {/* Dataset Loader */}
+      {onDatasetLoad && (
+        <div className="pt-3 border-t border-cyan-400/20">
+          <DatasetLoader 
+            onDatasetLoad={onDatasetLoad}
+            disabled={disabled || isTraining}
+          />
+        </div>
+      )}
       
       {/* Status indicator */}
       <div className="flex items-center justify-center gap-2 pt-2 border-t border-cyan-400/20">

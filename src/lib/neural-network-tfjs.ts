@@ -5,6 +5,11 @@
 
 import * as tf from '@tensorflow/tfjs';
 
+// Helper para obtener el backend actual de TensorFlow
+export function getBackend(): string {
+  return tf.getBackend() || 'cpu';
+}
+
 // ============================================
 // TIPOS Y CONFIGURACIONES
 // ============================================
@@ -144,6 +149,8 @@ export interface LayerConfig {
 }
 
 export interface TFModelConfig {
+  inputSize: number;  // Neuronas de entrada
+  outputSize: number; // Neuronas de salida (en última capa)
   layers: LayerConfig[];
   loss: LossFn;
   optimizer: OptimizerName;
@@ -187,7 +194,7 @@ export class TensorFlowNetwork {
       this.model!.add(tf.layers.dense({
         units: layer.units,
         activation: layer.activation as any,
-        inputShape: i === 0 ? [1] : undefined,
+        inputShape: i === 0 ? [this.config.inputSize] : undefined,
         kernelInitializer: 'glorotUniform',
       }));
     });
@@ -251,16 +258,28 @@ export class TensorFlowNetwork {
     return loss;
   }
 
-  // Entrenar múltiples épocas
-  async trainEpochs(X: number[], Y: number[], epochs: number): Promise<number> {
+  // Entrenar múltiples épocas (soporta X/Y 1D o 2D)
+  async trainEpochs(X: number[] | number[][], Y: number[] | number[][], epochs: number): Promise<number> {
     if (!this.model) throw new Error('Model not initialized');
 
-    const xs = tf.tensor2d(X, [X.length, 1]);
-    const ys = tf.tensor2d(Y, [Y.length, 1]);
+    // Determinar si es 1D o 2D
+    const is2D = Array.isArray(X[0]);
+    let xs: tf.Tensor2D;
+    let ys: tf.Tensor2D;
+    
+    if (is2D) {
+      // Datos multidimensionales (CSV)
+      xs = tf.tensor2d(X as number[][]);
+      ys = tf.tensor2d(Y as number[][]);
+    } else {
+      // Datos 1D (función seno)
+      xs = tf.tensor2d(X as number[], [(X as number[]).length, 1]);
+      ys = tf.tensor2d(Y as number[], [(Y as number[]).length, 1]);
+    }
 
     const history = await this.model.fit(xs, ys, {
       epochs,
-      batchSize: 32,
+      batchSize: Math.min(32, (is2D ? (X as number[][]).length : (X as number[]).length)),
       shuffle: true,
       verbose: 0,
     });
@@ -280,11 +299,19 @@ export class TensorFlowNetwork {
     return finalLoss;
   }
 
-  // Predecir
-  predict(X: number[]): number[] {
+  // Predecir (soporta X 1D o 2D)
+  predict(X: number[] | number[][]): number[] {
     if (!this.model) throw new Error('Model not initialized');
 
-    const xs = tf.tensor2d(X, [X.length, 1]);
+    const is2D = Array.isArray(X[0]);
+    let xs: tf.Tensor2D;
+    
+    if (is2D) {
+      xs = tf.tensor2d(X as number[][]);
+    } else {
+      xs = tf.tensor2d(X as number[], [(X as number[]).length, 1]);
+    }
+    
     const predictions = this.model.predict(xs) as tf.Tensor;
     const data = predictions.dataSync();
     
@@ -334,7 +361,7 @@ export class TensorFlowNetwork {
 
   // Obtener arquitectura como array
   getArchitecture(): number[] {
-    return [1, ...this.config.layers.map(l => l.units)];
+    return [this.config.inputSize, ...this.config.layers.map(l => l.units)];
   }
 
   // Obtener pesos y biases del modelo
@@ -377,22 +404,32 @@ export class TensorFlowNetwork {
     return { weights, biases };
   }
 
-  // Obtener activaciones intermedias para un input
-  getActivations(x: number): { preActivation: number[]; activation: number[] }[] {
-    if (!this.model) {
-      return [];
+  // Obtener activaciones intermedias de todas las capas para un input dado
+  // Si x no se especifica, usa valores que producen activaciones más visibles
+  getActivations(x?: number | number[]): { preActivation: number[]; activation: number[] }[] {
+    if (!this.model) return [];
+    
+    // Crear input de prueba (vector para inputSize > 1)
+    let testInput: number[];
+    if (Array.isArray(x)) {
+      testInput = x;
+    } else if (x !== undefined) {
+      testInput = new Array(this.config.inputSize).fill(x);
+    } else {
+      // Valores por defecto que producen activaciones visibles
+      testInput = new Array(this.config.inputSize).fill(0).map((_, i) => 1.5 + i * 0.5);
     }
 
     const layers: { preActivation: number[]; activation: number[] }[] = [];
     
-    // Capa de entrada
+    // Capa de entrada (normalizar para visualización)
     layers.push({
-      preActivation: [x],
-      activation: [x],
+      preActivation: testInput.map(v => Math.abs(v) / 6),
+      activation: testInput.map(v => Math.abs(v) / 6),
     });
 
     // Obtener activaciones de cada capa
-    let currentInput: tf.Tensor = tf.tensor2d([[x]]);
+    let currentInput: tf.Tensor = tf.tensor2d([testInput]);
     
     for (let i = 0; i < this.model.layers.length; i++) {
       const layer = this.model.layers[i];
@@ -529,10 +566,12 @@ export function generateSineDataset(
 
 // Configuración por defecto
 export const DEFAULT_TF_CONFIG: TFModelConfig = {
+  inputSize: 1,
+  outputSize: 1,
   layers: [
     { units: 16, activation: 'swish' },
     { units: 16, activation: 'tanh' },
-    { units: 1, activation: 'linear' },
+    { units: 1, activation: 'linear' }, // outputSize neuronas
   ],
   loss: 'meanSquaredError',
   optimizer: 'adam',
