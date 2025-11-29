@@ -1,165 +1,94 @@
-# 🧠 Neural Sine Learner
+# 🧠 Neural Network Visualizer
 
-An interactive neural network visualizer learning the sine function in real-time. Built from scratch with no external ML libraries. Watch how a feedforward neural network progressively learns to approximate the sine wave through gradient descent and backpropagation.
-
-> 🤖 **Note on Development:** This project was designed and programmed with the assistance of Artificial Intelligence. It serves as a dual example: on one hand, it teaches the fundamentals of neural networks (forward propagation, backpropagation, gradient descent), and on the other, it demonstrates how modern generative AI can accelerate and enhance software development.
+An interactive neural network visualizer for learning mathematical functions and classifying datasets in real-time. Features a sci-fi CRT oscilloscope aesthetic with TensorFlow.js acceleration.
 
 <p align="center">
-  <img src="preview.png" alt="Neural Sine Learner Preview" width="800"/>
+  <img src="preview.png" alt="Neural Network Visualizer Preview" width="800"/>
 </p>
 
 ## ✨ Features
 
-- **Neural Network from Scratch**: 100% implemented in TypeScript without external ML libraries
-- **Real-time Visualization**: Watch the network adjust its prediction epoch by epoch
-- **Sci-fi Aesthetics**: CRT oscilloscope style with glow effects
-- **Interactive Control Panel**:
-  - Play/Pause training
-  - Adjustable speed (epochs per tick) with slow-motion support
-  - Real-time learning rate adjustment
-  - Momentum control
-  - Reset to restart the experiment
-- **Neuron Visualization**: Neurons glow based on their activation level
-- **Forward Pass Animation**: Visualize signal flow through the network with cyan highlights
-- **Hover Tooltips**: Detailed information about each neuron's weights, bias, and interpretation
-- **i18n Support**: English/Spanish language toggle
+### Two Application Modes
 
-## 🏗️ Network Architecture
+**📈 Regression Mode**
+- Approximate mathematical functions (sin, cos, tan, custom formulas)
+- Real-time oscilloscope visualization
+- Test mode to evaluate generalization
 
-```
-Input (1) → Hidden (8, tanh) → Hidden (8, tanh) → Output (1, linear)
-```
+**📊 Classification Mode**
+- Load CSV datasets for binary classification
+- Train/Test split with configurable ratio
+- Live accuracy metrics (train & test)
+- Feature importance visualization per neuron
 
-- **Input**: A single value x in range [-6, 6]
-- **Hidden Layers**: 2 layers of 8 neurons each with tanh activation
-- **Output**: A single value ŷ (sine prediction)
-- **Optimization**: Stochastic Gradient Descent (SGD) with manual backpropagation
-- **Momentum**: Optional momentum for faster convergence
+### Core Features
 
-## 📊 Dataset
+- **TensorFlow.js Backend**: GPU-accelerated training
+- **Interactive Network Visualization**: Neurons glow based on activation
+- **Forward Pass Animation**: Watch signal flow through layers
+- **Hover Tooltips**: Detailed neuron info with feature importance bars
+- **Configurable Architecture**: Adjust hidden layers, neurons, and activations
+- **i18n Support**: English/Spanish
 
-- **200 points** generated as `sin(x) + noise`
-- **Gaussian noise** with σ = 0.2
-- **Range**: x ∈ [-6, 6]
-
-## 🚀 Installation
-
-### Requirements
-- Node.js 18+
-- npm or yarn
-
-### Steps
+## 🚀 Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/protos50/Neural-Sine-Learner.git
-cd Neural-Sine-Learner
-
-# Install dependencies
+git clone https://github.com/protos50/Neural-Network-Visualizer.git
+cd Neural-Network-Visualizer
 npm install
-
-# Run development server
 npm run dev
-
-# Open in browser
-# http://localhost:3000
+# Open http://localhost:3000
 ```
 
-## 🎮 Usage
+## 📁 CSV Dataset Format
 
-### Controls
+Place CSV files in `/public/datasets/`. Use metadata comments to define columns:
+
+```csv
+# INPUT_COLS: Pclass,Sex,Age,SibSp,Parch,Fare
+# OUTPUT_COLS: Survived
+Pclass,Sex,Age,SibSp,Parch,Fare,Survived
+3,0,22,1,0,7.25,0
+1,1,38,1,0,71.28,1
+...
+```
+
+### Rules
+
+| Rule | Description |
+|------|-------------|
+| `# INPUT_COLS:` | Comma-separated input column names |
+| `# OUTPUT_COLS:` | Output column name (binary: 0 or 1) |
+| First row after comments | Header row (column names) |
+| All values | Must be numeric |
+
+## 🎮 Controls
+
 | Control | Description |
 |---------|-------------|
 | ▶ Play/Pause | Start/stop training |
-| ⏹ Stop | Stop training, keep current state |
-| ↺ Reset | Reset network with random weights |
-| ⚡ Forward | Toggle forward pass animation |
-| Speed Slider | Control epochs per tick (0.1-50) |
-| Learning Rate | Adjust learning rate (0.001-0.1) |
-| Momentum | Add inertia to weight updates (0-0.99) |
-
-### Visualization
-
-#### Main Canvas (Oscilloscope)
-- **Bright green dots**: Noisy dataset (sin(x) + noise)
-- **Green laser line**: Current network prediction
-- **Faint dotted line**: True sine function
-
-#### Neural Network View
-- **Bright circles**: Highly activated neurons
-- **Dim circles**: Low activation neurons
-- **Green lines**: Positive weights
-- **Red lines**: Negative weights
-- **Cyan glow**: Forward pass animation (when enabled)
-
-#### Metrics
-- **Epoch**: Number of complete passes through the dataset
-- **Loss (MSE)**: Mean Squared Error (lower is better)
-
-## 📁 Project Structure
-
-```
-Neural-Sine-Learner/
-├── src/
-│   ├── app/
-│   │   ├── globals.css           # Global styles (CRT effects)
-│   │   ├── layout.tsx            # Main layout
-│   │   └── page.tsx              # Main page with training loop
-│   ├── components/
-│   │   ├── OscilloscopeCanvas.tsx  # Graph canvas
-│   │   ├── NeuralNetworkViz.tsx    # Neuron visualization
-│   │   └── TrainingPanel.tsx       # Control panel
-│   └── lib/
-│       ├── neural-network.ts       # Neural network from scratch
-│       └── i18n.tsx                # Internationalization
-├── package.json
-├── tailwind.config.ts
-└── README.md
-```
-
-## 🧪 Concepts Demonstrated
-
-| Concept | Description |
-|---------|-------------|
-| **Forward Propagation** | Signal flow from input to output |
-| **Backpropagation** | Gradient calculation through chain rule |
-| **Gradient Descent** | Weight updates to minimize loss |
-| **Activation Functions** | tanh non-linearity for learning curves |
-| **Loss Function (MSE)** | Error metric for regression |
-| **Momentum** | Accelerated convergence, escaping local minima |
-| **Learning Rate** | Step size trade-off (stability vs speed) |
+| ⏹ Stop | Stop and keep current state |
+| ↺ Reset | Reinitialize network weights |
+| Train/Test slider | Adjust data split ratio |
+| Learning Rate | Control step size |
 
 ## 🛠️ Tech Stack
 
-- **Next.js 14** (React framework)
-- **TypeScript** (Type safety)
-- **Tailwind CSS** (Styling)
-- **Canvas API** (Visualization)
+- **Next.js 14** + **TypeScript**
+- **TensorFlow.js** (GPU acceleration)
+- **Tailwind CSS** (CRT styling)
 - **Lucide React** (Icons)
-
-## 🎓 Educational Purpose
-
-This project visually demonstrates:
-
-- How a neural network **learns to approximate a function**
-- The effect of **hyperparameters** (learning rate, momentum, architecture)
-- The **convergence process** of the loss function
-- The importance of **non-linearity** (without tanh, it couldn't learn the curve)
-- **Forward pass signal flow** through the network layers
 
 ## 👤 Author
 
-**Franco Joaquín Zini**
-
-- LinkedIn: [francojzini](https://linkedin.com/in/francojzini)
-- GitHub: [protos50](https://github.com/protos50)
+**Franco Joaquín Zini** — [GitHub](https://github.com/protos50) · [LinkedIn](https://linkedin.com/in/francojzini)
 
 ## 📝 License
 
-MIT License - Educational use
+MIT License — Educational use
 
 ---
 
 <p align="center">
-  Developed for <strong>Artificial Intelligence</strong> course - UNNE 2025
+  Developed for <strong>Artificial Intelligence</strong> course — UNNE 2025
 </p>
