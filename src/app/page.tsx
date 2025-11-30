@@ -21,7 +21,7 @@ import ModeSelector, { type NetworkMode } from '@/components/ModeSelector';
 import { useI18n, LanguageSelector } from '@/lib/i18n';
 import { Brain, Waves, Github, GraduationCap, FlaskConical, Cpu, Zap, LineChart, Database } from 'lucide-react';
 import { useTrainingWorker } from '@/hooks/useTrainingWorker';
-import { getBackend } from '@/lib/neural-network-tfjs';
+import { getBackend, setBackend, type TFBackend } from '@/lib/neural-network-tfjs';
 
 const DEFAULT_CONFIG: NetworkConfig = {
   hiddenLayers: [8, 8],
@@ -84,8 +84,9 @@ export default function Home() {
   const [useWorker, setUseWorker] = useState(true);
   const pendingTrainRef = useRef(false);
   
-  // Backend de TensorFlow.js (webgl = GPU, cpu = CPU)
+  // Backend de TensorFlow.js (webgl = GPU, cpu = CPU, wasm = WebAssembly)
   const [tfBackend, setTfBackend] = useState<string>('...');
+  const [isChangingBackend, setIsChangingBackend] = useState(false);
   
   // Modo de aplicación: 'regression' (funciones matemáticas) o 'classification' (datasets CSV)
   const [appMode, setAppMode] = useState<'regression' | 'classification'>('regression');
@@ -719,6 +720,37 @@ export default function Home() {
     
   }, [tfConfig]);
 
+  // Handler para cambiar el backend de TensorFlow.js
+  const handleBackendChange = useCallback(async (newBackend: TFBackend) => {
+    if (isTraining) {
+      setIsTraining(false);
+    }
+    
+    setIsChangingBackend(true);
+    setTfBackend('...');
+    
+    const success = await setBackend(newBackend);
+    
+    if (success) {
+      setTfBackend(getBackend());
+      
+      // Recrear la red con el nuevo backend
+      if (tfNetworkRef.current) {
+        tfNetworkRef.current.dispose();
+        tfNetworkRef.current = new TensorFlowNetwork(tfConfig);
+        
+        // Resetear estado
+        setPredictions(new Array(dataset.X.length).fill(0));
+        setEpoch(0);
+        setLoss(1);
+      }
+    } else {
+      setTfBackend(getBackend());
+    }
+    
+    setIsChangingBackend(false);
+  }, [isTraining, tfConfig, dataset.X.length]);
+
   const handleToggleTestMode = useCallback(() => {
     if (!isTestMode) {
       // Activar modo test
@@ -1002,21 +1034,37 @@ export default function Home() {
             </button>
           )}
           
-          {/* Indicador de backend TensorFlow (solo modo tensorflow) */}
+          {/* Selector de backend TensorFlow (solo modo tensorflow) */}
           {networkMode === 'tensorflow' && (
-            <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border ${
-              tfBackend === 'webgl'
-                ? 'bg-purple-600/20 border-purple-500/50 text-purple-400'
-                : tfBackend === 'cpu'
-                  ? 'bg-orange-600/20 border-orange-500/50 text-orange-400'
-                  : 'bg-gray-600/20 border-gray-500/30 text-gray-400'
-            }`}>
-              <Zap className="w-3 h-3" />
-              {tfBackend === 'webgl' 
-                ? 'GPU (WebGL)' 
-                : tfBackend === 'cpu' 
-                  ? 'CPU' 
-                  : tfBackend}
+            <div className="flex items-center gap-1">
+              <Zap className={`w-3 h-3 ${
+                tfBackend === 'webgl' ? 'text-purple-400' :
+                tfBackend === 'wasm' ? 'text-cyan-400' :
+                tfBackend === 'cpu' ? 'text-orange-400' : 'text-gray-400'
+              }`} />
+              <select
+                value={tfBackend}
+                onChange={(e) => handleBackendChange(e.target.value as TFBackend)}
+                disabled={isChangingBackend || isTraining}
+                className={`px-2 py-0.5 rounded text-[10px] border bg-black/50 cursor-pointer
+                  focus:outline-none focus:ring-1 focus:ring-cyan-400/50
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  ${tfBackend === 'webgl' 
+                    ? 'border-purple-500/50 text-purple-400' 
+                    : tfBackend === 'wasm'
+                      ? 'border-cyan-500/50 text-cyan-400'
+                      : tfBackend === 'cpu' 
+                        ? 'border-orange-500/50 text-orange-400'
+                        : 'border-gray-500/30 text-gray-400'
+                  }`}
+              >
+                <option value="webgl" className="bg-black text-purple-400">GPU (WebGL)</option>
+                <option value="wasm" className="bg-black text-cyan-400">WASM</option>
+                <option value="cpu" className="bg-black text-orange-400">CPU</option>
+              </select>
+              {isChangingBackend && (
+                <span className="text-[9px] text-gray-400 animate-pulse">...</span>
+              )}
             </div>
           )}
         </div>

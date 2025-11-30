@@ -5,9 +5,59 @@
 
 import * as tf from '@tensorflow/tfjs';
 
+// Backends disponibles
+export type TFBackend = 'cpu' | 'webgl' | 'wasm';
+
 // Helper para obtener el backend actual de TensorFlow
 export function getBackend(): string {
   return tf.getBackend() || 'cpu';
+}
+
+// Cambiar el backend de TensorFlow.js
+export async function setBackend(backend: TFBackend): Promise<boolean> {
+  try {
+    // Para WASM necesitamos importar dinámicamente
+    if (backend === 'wasm') {
+      const wasmModule = await import('@tensorflow/tfjs-backend-wasm');
+      wasmModule.setWasmPaths('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/');
+    }
+    
+    await tf.setBackend(backend);
+    await tf.ready();
+    console.log(`TensorFlow.js backend changed to: ${tf.getBackend()}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to set backend to ${backend}:`, error);
+    // Fallback a CPU si falla
+    try {
+      await tf.setBackend('cpu');
+      await tf.ready();
+    } catch {
+      // Ignore fallback error
+    }
+    return false;
+  }
+}
+
+// Obtener backends disponibles en este navegador
+export async function getAvailableBackends(): Promise<TFBackend[]> {
+  const available: TFBackend[] = ['cpu']; // CPU siempre disponible
+  
+  // Verificar WebGL
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (gl) available.push('webgl');
+  } catch {
+    // WebGL no disponible
+  }
+  
+  // WASM generalmente disponible en navegadores modernos
+  if (typeof WebAssembly !== 'undefined') {
+    available.push('wasm');
+  }
+  
+  return available;
 }
 
 // ============================================
