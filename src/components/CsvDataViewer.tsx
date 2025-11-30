@@ -103,38 +103,156 @@ export default function CsvDataViewer({
     if (predictions.length === 0 || Y.length === 0) return 0;
     
     let correct = 0;
-    for (let i = splitIndex; i < Y.length; i++) {
-      if (i >= predictions.length) continue;
-      const pred = predictions[i] > 0.5 ? 1 : 0;
-      const actual = Y[i][0] > 0.5 ? 1 : 0;
-      if (pred === actual) correct++;
+    
+    if (outputSize > 1) {
+      for (let i = splitIndex; i < Y.length; i++) {
+        const base = i * outputSize;
+        if (base + outputSize > predictions.length) continue;
+        const predVec = predictions.slice(base, base + outputSize);
+        const targetVec = Y[i];
+        
+        let predClass = 0;
+        let predMax = predVec[0];
+        for (let k = 1; k < outputSize; k++) {
+          if (predVec[k] > predMax) {
+            predMax = predVec[k];
+            predClass = k;
+          }
+        }
+        
+        let actualClass = 0;
+        let actualMax = targetVec[0];
+        for (let k = 1; k < outputSize; k++) {
+          if (targetVec[k] > actualMax) {
+            actualMax = targetVec[k];
+            actualClass = k;
+          }
+        }
+        
+        if (predClass === actualClass) correct++;
+      }
+    } else {
+      for (let i = splitIndex; i < Y.length; i++) {
+        if (i >= predictions.length) continue;
+        const pred = predictions[i] > 0.5 ? 1 : 0;
+        const actual = Y[i][0] > 0.5 ? 1 : 0;
+        if (pred === actual) correct++;
+      }
     }
     
     return testCount > 0 ? (correct / testCount) * 100 : 0;
-  }, [predictions, Y, splitIndex, testCount]);
+  }, [predictions, Y, splitIndex, testCount, outputSize]);
   
   // Calcular accuracy sobre train
   const trainAccuracy = useMemo(() => {
     if (predictions.length === 0 || Y.length === 0) return 0;
     
     let correct = 0;
-    for (let i = 0; i < splitIndex; i++) {
-      if (i >= predictions.length) continue;
-      const pred = predictions[i] > 0.5 ? 1 : 0;
-      const actual = Y[i][0] > 0.5 ? 1 : 0;
-      if (pred === actual) correct++;
+    
+    if (outputSize > 1) {
+      for (let i = 0; i < splitIndex; i++) {
+        const base = i * outputSize;
+        if (base + outputSize > predictions.length) continue;
+        const predVec = predictions.slice(base, base + outputSize);
+        const targetVec = Y[i];
+        
+        let predClass = 0;
+        let predMax = predVec[0];
+        for (let k = 1; k < outputSize; k++) {
+          if (predVec[k] > predMax) {
+            predMax = predVec[k];
+            predClass = k;
+          }
+        }
+        
+        let actualClass = 0;
+        let actualMax = targetVec[0];
+        for (let k = 1; k < outputSize; k++) {
+          if (targetVec[k] > actualMax) {
+            actualMax = targetVec[k];
+            actualClass = k;
+          }
+        }
+        
+        if (predClass === actualClass) correct++;
+      }
+    } else {
+      for (let i = 0; i < splitIndex; i++) {
+        if (i >= predictions.length) continue;
+        const pred = predictions[i] > 0.5 ? 1 : 0;
+        const actual = Y[i][0] > 0.5 ? 1 : 0;
+        if (pred === actual) correct++;
+      }
     }
     
     return trainCount > 0 ? (correct / trainCount) * 100 : 0;
-  }, [predictions, Y, splitIndex, trainCount]);
+  }, [predictions, Y, splitIndex, trainCount, outputSize]);
   
   // Datos de la fila actual
   const globalIndex = viewData.offset + localIndex;
   const currentRow = viewData.X[localIndex];
   const currentTarget = viewData.Y[localIndex];
-  const currentPred = viewData.predictions[localIndex];
   const isTrainRow = globalIndex < splitIndex;
+
+  // Utilidad para nombres de clases
+  const getClassLabel = (classIndex: number | undefined) => {
+    if (classIndex === undefined || classIndex < 0) return '--';
+    if (outputCols && outputCols[classIndex]) return outputCols[classIndex];
+    return `Class ${classIndex}`;
+  };
+
+  // Predicción actual (binaria o multiclase)
+  let currentPredScalar: number | undefined = undefined;
+  let currentPredClass: number | undefined = undefined;
+  let currentTargetClass: number | undefined = undefined;
+
+  if (outputSize === 1) {
+    // Caso binario clásico (Titanic, XOR, etc.)
+    currentPredScalar = viewData.predictions[localIndex];
+    if (currentTarget && currentTarget.length > 0) {
+      currentTargetClass = currentTarget[0] > 0.5 ? 1 : 0;
+    }
+  } else {
+    // Multiclase: usar argmax de vectores de longitud outputSize
+    const base = globalIndex * outputSize;
+    if (base + outputSize <= predictions.length) {
+      const predVec = predictions.slice(base, base + outputSize);
+      // Clase predicha
+      let maxIdx = 0;
+      let maxVal = predVec[0];
+      for (let k = 1; k < outputSize; k++) {
+        if (predVec[k] > maxVal) {
+          maxVal = predVec[k];
+          maxIdx = k;
+        }
+      }
+      currentPredClass = maxIdx;
+      currentPredScalar = maxVal;
+    }
+    // Clase real (argmax del target one-hot)
+    if (currentTarget && currentTarget.length === outputSize) {
+      let maxIdxT = 0;
+      let maxValT = currentTarget[0];
+      for (let k = 1; k < outputSize; k++) {
+        if (currentTarget[k] > maxValT) {
+          maxValT = currentTarget[k];
+          maxIdxT = k;
+        }
+      }
+      currentTargetClass = maxIdxT;
+    }
+  }
   
+  // Determinar si la predicción actual coincide con el target
+  let isMatch: boolean | undefined = undefined;
+  if (outputSize === 1 && currentPredScalar !== undefined && currentTarget && currentTarget.length > 0) {
+    const predBin = currentPredScalar > 0.5 ? 1 : 0;
+    const targetBin = currentTarget[0] > 0.5 ? 1 : 0;
+    isMatch = predBin === targetBin;
+  } else if (outputSize > 1 && currentPredClass !== undefined && currentTargetClass !== undefined) {
+    isMatch = currentPredClass === currentTargetClass;
+  }
+
   return (
     <div className="bg-black/60 border border-cyan-400/30 rounded-lg p-3 space-y-3 w-[750px]">
       {/* Header */}
@@ -257,35 +375,59 @@ export default function CsvDataViewer({
           {/* Prediction vs Target */}
           <div className="flex gap-2">
             {/* Prediction */}
-            <div className="p-2 bg-cyan-400/5 border border-cyan-400/20 rounded min-w-[100px]">
+            <div className="p-2 bg-cyan-400/5 border border-cyan-400/20 rounded min-w-[120px]">
               <div className="text-[9px] text-cyan-400/60 uppercase mb-1">{t('predictionLabel')}</div>
               <div className="flex flex-col items-center">
                 <span className="text-2xl font-mono text-cyan-400">
-                  {currentPred !== undefined ? currentPred.toFixed(3) : '--'}
+                  {outputSize === 1
+                    ? (currentPredScalar !== undefined ? currentPredScalar.toFixed(3) : '--')
+                    : currentPredClass !== undefined
+                      ? getClassLabel(currentPredClass)
+                      : '--'}
                 </span>
-                {currentPred !== undefined && (
-                  <span className={`text-xs px-2 py-0.5 rounded mt-1 ${
-                    currentPred > 0.5 ? 'bg-green-400/20 text-green-400' : 'bg-red-400/20 text-red-400'
-                  }`}>
-                    {currentPred > 0.5 ? t('survives') : t('doesNotSurvive')}
-                  </span>
+                {outputSize === 1 ? (
+                  currentPredScalar !== undefined && (
+                    <span className={`text-xs px-2 py-0.5 rounded mt-1 ${
+                      currentPredScalar > 0.5 ? 'bg-green-400/20 text-green-400' : 'bg-red-400/20 text-red-400'
+                    }`}>
+                      {(outputCols?.[0] || 'y') + '=' + (currentPredScalar > 0.5 ? '1' : '0')}
+                    </span>
+                  )
+                ) : (
+                  currentPredScalar !== undefined && (
+                    <span className="text-xs px-2 py-0.5 rounded mt-1 bg-cyan-400/10 text-cyan-300">
+                      p = {currentPredScalar.toFixed(3)}
+                    </span>
+                  )
                 )}
               </div>
             </div>
             
             {/* Target */}
-            <div className="p-2 bg-orange-400/5 border border-orange-400/20 rounded min-w-[100px]">
+            <div className="p-2 bg-orange-400/5 border border-orange-400/20 rounded min-w-[120px]">
               <div className="text-[9px] text-orange-400/60 uppercase mb-1">{t('realLabel')}</div>
               <div className="flex flex-col items-center">
                 <span className="text-2xl font-mono text-orange-400">
-                  {currentTarget?.[0]?.toFixed(0) ?? '--'}
+                  {outputSize === 1
+                    ? (currentTarget?.[0]?.toFixed(0) ?? '--')
+                    : currentTargetClass !== undefined
+                      ? getClassLabel(currentTargetClass)
+                      : '--'}
                 </span>
-                {currentTarget && (
-                  <span className={`text-xs px-2 py-0.5 rounded mt-1 ${
-                    currentTarget[0] > 0.5 ? 'bg-green-400/20 text-green-400' : 'bg-red-400/20 text-red-400'
-                  }`}>
-                    {currentTarget[0] > 0.5 ? t('survives') : t('doesNotSurvive')}
-                  </span>
+                {outputSize === 1 ? (
+                  currentTarget && (
+                    <span className={`text-xs px-2 py-0.5 rounded mt-1 ${
+                      currentTarget[0] > 0.5 ? 'bg-green-400/20 text-green-400' : 'bg-red-400/20 text-red-400'
+                    }`}>
+                      {(outputCols?.[0] || 'y') + '=' + (currentTarget[0] > 0.5 ? '1' : '0')}
+                    </span>
+                  )
+                ) : (
+                  currentTargetClass !== undefined && (
+                    <span className="text-xs px-2 py-0.5 rounded mt-1 bg-orange-400/10 text-orange-300">
+                      {getClassLabel(currentTargetClass)}
+                    </span>
+                  )
                 )}
               </div>
             </div>
@@ -293,15 +435,18 @@ export default function CsvDataViewer({
         </div>
         
         {/* Match indicator */}
-        {currentPred !== undefined && currentTarget && (
+        {isMatch !== undefined && (
           <div className={`text-center py-2 rounded text-sm font-mono ${
-            (currentPred > 0.5 ? 1 : 0) === (currentTarget[0] > 0.5 ? 1 : 0)
+            isMatch
               ? 'bg-green-400/10 text-green-400 border border-green-400/30'
               : 'bg-red-400/10 text-red-400 border border-red-400/30'
           }`}>
-            {(currentPred > 0.5 ? 1 : 0) === (currentTarget[0] > 0.5 ? 1 : 0)
-              ? `✓ ${t('correct')}`
-              : `✗ ${t('incorrect')}`}
+            {isMatch ? `✓ ${t('correct')}` : `✗ ${t('incorrect')}`}
+            {outputSize > 1 && currentPredClass !== undefined && currentTargetClass !== undefined && (
+              <div className="mt-1 text-[10px] text-cyan-200/80">
+                Pred: {getClassLabel(currentPredClass)} • Real: {getClassLabel(currentTargetClass)}
+              </div>
+            )}
           </div>
         )}
       </div>

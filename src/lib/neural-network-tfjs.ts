@@ -262,28 +262,7 @@ export class TensorFlowNetwork {
     // Construir optimizador
     const optimizer = this.buildOptimizer();
 
-    // Compilar modelo con loss function
-    // Huber necesita ser función custom en TF.js
-    let lossFunction: string | ((yTrue: tf.Tensor, yPred: tf.Tensor) => tf.Tensor) = this.config.loss;
-    
-    if (this.config.loss === 'huber') {
-      lossFunction = (yTrue: tf.Tensor, yPred: tf.Tensor) => {
-        const delta = 1.0;
-        const error = tf.sub(yPred, yTrue);
-        const absError = tf.abs(error);
-        const quadratic = tf.minimum(absError, delta);
-        const linear = tf.sub(absError, quadratic);
-        return tf.mean(tf.add(
-          tf.mul(tf.scalar(0.5), tf.square(quadratic)),
-          tf.mul(tf.scalar(delta), linear)
-        ));
-      };
-    } else if (this.config.loss === 'logcosh') {
-      lossFunction = (yTrue: tf.Tensor, yPred: tf.Tensor) => {
-        const error = tf.sub(yPred, yTrue);
-        return tf.mean(tf.log(tf.cosh(error)));
-      };
-    }
+    const lossFunction = this.getLossFunction();
     
     this.model.compile({
       optimizer,
@@ -313,6 +292,29 @@ export class TensorFlowNetwork {
       default:
         return tf.train.adam(lr);
     }
+  }
+
+  private getLossFunction(): string | ((yTrue: tf.Tensor, yPred: tf.Tensor) => tf.Tensor) {
+    if (this.config.loss === 'huber') {
+      return (yTrue: tf.Tensor, yPred: tf.Tensor) => {
+        const delta = 1.0;
+        const error = tf.sub(yPred, yTrue);
+        const absError = tf.abs(error);
+        const quadratic = tf.minimum(absError, delta);
+        const linear = tf.sub(absError, quadratic);
+        return tf.mean(tf.add(
+          tf.mul(tf.scalar(0.5), tf.square(quadratic)),
+          tf.mul(tf.scalar(delta), linear)
+        ));
+      };
+    }
+    if (this.config.loss === 'logcosh') {
+      return (yTrue: tf.Tensor, yPred: tf.Tensor) => {
+        const error = tf.sub(yPred, yTrue);
+        return tf.mean(tf.log(tf.cosh(error)));
+      };
+    }
+    return this.config.loss;
   }
 
   // Entrenar una época
@@ -635,7 +637,7 @@ export class TensorFlowNetwork {
       const optimizer = this.buildOptimizer();
       this.model.compile({
         optimizer,
-        loss: this.config.loss as any,
+        loss: this.getLossFunction() as any,
         metrics: ['mse'],
       });
     }
@@ -656,7 +658,7 @@ export class TensorFlowNetwork {
       const newOptimizer = this.buildOptimizer();
       this.model.compile({
         optimizer: newOptimizer,
-        loss: this.config.loss as any,
+        loss: this.getLossFunction() as any,
         metrics: ['mse'],
       });
     }
@@ -669,7 +671,7 @@ export class TensorFlowNetwork {
       const optimizer = this.buildOptimizer();
       this.model.compile({
         optimizer,
-        loss: loss as any,
+        loss: this.getLossFunction() as any,
         metrics: ['mse'],
       });
     }

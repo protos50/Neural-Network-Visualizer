@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// Forzar que esta ruta sea dinámica (no cacheada)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const datasetsDir = path.join(process.cwd(), 'public', 'datasets');

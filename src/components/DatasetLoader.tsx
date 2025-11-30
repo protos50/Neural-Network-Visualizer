@@ -136,7 +136,7 @@ export default function DatasetLoader({ onDatasetLoad, disabled = false }: Datas
     setError(null);
 
     try {
-      const response = await fetch(`/datasets/${info.filename}`);
+      const response = await fetch(`/api/datasets/file?name=${encodeURIComponent(info.filename)}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
