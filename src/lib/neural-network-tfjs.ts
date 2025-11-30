@@ -69,6 +69,7 @@ export const ALLOWED_ACTIVATIONS = [
   'relu',
   'relu6',
   'sigmoid',
+  'softmax',  // Para clasificación multiclase
   'tanh',
   'elu',
   'selu',
@@ -126,6 +127,11 @@ export const activationDescriptions: Record<TFActivation, { formula: string; ran
     formula: 'σ(x) = 1/(1 + e⁻ˣ)',
     range: '(0, 1)',
     desc: 'Clásica, problemas de gradiente',
+  },
+  softmax: {
+    formula: 'softmax(x)ᵢ = eˣⁱ / Σeˣʲ',
+    range: '(0, 1), suma=1',
+    desc: 'Multiclase, probabilidades',
   },
   tanh: {
     formula: 'tanh(x) = (eˣ - e⁻ˣ)/(eˣ + e⁻ˣ)',
@@ -256,10 +262,32 @@ export class TensorFlowNetwork {
     // Construir optimizador
     const optimizer = this.buildOptimizer();
 
-    // Compilar modelo
+    // Compilar modelo con loss function
+    // Huber necesita ser función custom en TF.js
+    let lossFunction: string | ((yTrue: tf.Tensor, yPred: tf.Tensor) => tf.Tensor) = this.config.loss;
+    
+    if (this.config.loss === 'huber') {
+      lossFunction = (yTrue: tf.Tensor, yPred: tf.Tensor) => {
+        const delta = 1.0;
+        const error = tf.sub(yPred, yTrue);
+        const absError = tf.abs(error);
+        const quadratic = tf.minimum(absError, delta);
+        const linear = tf.sub(absError, quadratic);
+        return tf.mean(tf.add(
+          tf.mul(tf.scalar(0.5), tf.square(quadratic)),
+          tf.mul(tf.scalar(delta), linear)
+        ));
+      };
+    } else if (this.config.loss === 'logcosh') {
+      lossFunction = (yTrue: tf.Tensor, yPred: tf.Tensor) => {
+        const error = tf.sub(yPred, yTrue);
+        return tf.mean(tf.log(tf.cosh(error)));
+      };
+    }
+    
     this.model.compile({
       optimizer,
-      loss: this.config.loss as any,
+      loss: lossFunction as any,
       metrics: ['mse'],
     });
   }

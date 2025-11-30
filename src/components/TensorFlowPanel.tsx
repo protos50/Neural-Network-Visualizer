@@ -376,6 +376,11 @@ export default function TensorFlowPanel({
               💡 Usa activación <strong>sigmoid</strong> en la capa de salida
             </div>
           )}
+          {config.loss === 'categoricalCrossentropy' && config.outputSize > 1 && (
+            <div className="mt-1 p-1 bg-cyan-500/10 border border-cyan-500/20 rounded text-[9px] text-cyan-400/70">
+              💡 Usa activación <strong>softmax</strong> en la capa de salida
+            </div>
+          )}
         </div>
       </div>
       
