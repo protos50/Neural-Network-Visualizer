@@ -240,19 +240,21 @@ export default function TensorFlowPanel({
           <div className="flex justify-between items-center">
             <span className="text-xs text-cyan-400/50 uppercase">{t('speed')}</span>
             <span className="text-xs text-cyan-400">
-              {speed < 1 ? speed.toFixed(1) : speed} {t('epochsPerTick')}
+              {speed < 1 ? speed.toFixed(1) : Math.round(speed)} {t('epochsPerTick')}
             </span>
           </div>
           <input
             type="range"
             min="0.1"
-            max="50"
-            step="0.1"
+            max="500"
+            step={speed < 10 ? 0.1 : speed < 100 ? 1 : 10}
             value={speed}
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
             className="w-full accent-cyan-400"
-            disabled={disabled}
           />
+          <div className="text-[9px] text-cyan-400/30 text-center">
+            {speed >= 100 ? '⚡ Alta velocidad' : speed >= 10 ? '🚀 Rápido' : '🐢 Normal'}
+          </div>
         </div>
         
         {/* Learning rate */}
@@ -279,7 +281,6 @@ export default function TensorFlowPanel({
             value={config.learningRate * 1000}
             onChange={(e) => onConfigChange({ learningRate: parseInt(e.target.value) / 1000 })}
             className="w-full accent-cyan-400"
-            disabled={disabled}
           />
           <div className="flex justify-between text-[10px] text-cyan-400/30">
             <span>0.001</span>
@@ -307,7 +308,6 @@ export default function TensorFlowPanel({
             value={config.optimizer}
             onChange={(e) => onConfigChange({ optimizer: e.target.value as OptimizerName })}
             className="w-full bg-black/50 border border-cyan-400/30 rounded px-2 py-1.5 text-xs font-mono text-cyan-400 focus:border-cyan-400 focus:outline-none"
-            disabled={disabled}
           >
             {OPTIMIZERS.map(opt => (
               <option key={opt} value={opt}>{opt.toUpperCase()}</option>
@@ -336,7 +336,6 @@ export default function TensorFlowPanel({
             value={config.loss}
             onChange={(e) => onConfigChange({ loss: e.target.value as LossFn })}
             className="w-full bg-black/50 border border-cyan-400/30 rounded px-2 py-1.5 text-xs font-mono text-cyan-400 focus:border-cyan-400 focus:outline-none"
-            disabled={disabled}
           >
             {LOSS_FUNCTIONS.map(lf => (
               <option key={lf} value={lf}>{lf}</option>

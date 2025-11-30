@@ -465,9 +465,32 @@ export default function Home() {
   const handleTFConfigChange = useCallback((newConfig: Partial<TFModelConfig>) => {
     if (networkMode !== 'tensorflow') return;
     
-    setIsTraining(false);
-    
     const updatedConfig = { ...tfConfig, ...newConfig };
+    
+    // Cambios en caliente (sin reconstruir la red, sin detener entrenamiento)
+    const isHotChange = tfNetworkRef.current && (
+      ('learningRate' in newConfig && Object.keys(newConfig).length === 1) ||
+      ('optimizer' in newConfig && Object.keys(newConfig).length === 1) ||
+      ('loss' in newConfig && Object.keys(newConfig).length === 1)
+    );
+    
+    if (isHotChange && tfNetworkRef.current) {
+      // Aplicar cambio en caliente
+      if (newConfig.learningRate !== undefined) {
+        tfNetworkRef.current.setLearningRate(newConfig.learningRate);
+      }
+      if (newConfig.optimizer !== undefined) {
+        tfNetworkRef.current.setOptimizer(newConfig.optimizer);
+      }
+      if (newConfig.loss !== undefined) {
+        tfNetworkRef.current.setLoss(newConfig.loss);
+      }
+      setTFConfig(updatedConfig);
+      return; // No reconstruir la red
+    }
+    
+    // Cambios de arquitectura: detener y reconstruir
+    setIsTraining(false);
     setTFConfig(updatedConfig);
     
     // Recrear red TensorFlow

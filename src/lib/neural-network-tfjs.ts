@@ -87,6 +87,8 @@ export const LOSS_FUNCTIONS = [
   'meanAbsoluteError',
   'huber',
   'logcosh',
+  'binaryCrossentropy',
+  'categoricalCrossentropy',
 ] as const;
 
 export type LossFn = typeof LOSS_FUNCTIONS[number];
@@ -187,6 +189,8 @@ export const lossDescriptions: Record<LossFn, string> = {
   meanAbsoluteError: 'MAE: |y - ŷ| - Robusto a outliers',
   huber: 'Huber: MSE para errores pequeños, MAE para grandes',
   logcosh: 'Log-cosh: Suave, similar a Huber',
+  binaryCrossentropy: 'BCE: Clasificación binaria (0/1)',
+  categoricalCrossentropy: 'CE: Clasificación multiclase',
 };
 
 // ============================================
@@ -615,6 +619,45 @@ export class TensorFlowNetwork {
       this.config.momentum = momentum;
       this.setLearningRate(this.config.learningRate); // Recompila
     }
+  }
+
+  // Actualizar optimizer en caliente (sin perder pesos)
+  setOptimizer(optimizer: OptimizerName): void {
+    this.config.optimizer = optimizer;
+    if (this.model) {
+      const newOptimizer = this.buildOptimizer();
+      this.model.compile({
+        optimizer: newOptimizer,
+        loss: this.config.loss as any,
+        metrics: ['mse'],
+      });
+    }
+  }
+
+  // Actualizar loss function en caliente (sin perder pesos)
+  setLoss(loss: LossFn): void {
+    this.config.loss = loss;
+    if (this.model) {
+      const optimizer = this.buildOptimizer();
+      this.model.compile({
+        optimizer,
+        loss: loss as any,
+        metrics: ['mse'],
+      });
+    }
+  }
+
+  // Obtener config actual (para UI)
+  getCurrentLoss(): LossFn {
+    return this.config.loss;
+  }
+
+  getCurrentOptimizer(): OptimizerName {
+    return this.config.optimizer;
+  }
+
+  getCurrentLearningRate(): number {
+    return this.config.learningRate;
   }
 
   // Limpiar recursos
