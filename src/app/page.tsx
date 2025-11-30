@@ -266,7 +266,13 @@ export default function Home() {
     let animationFrameId: number;
     
     // Intervalo base: más lento a bajas velocidades, más rápido a altas
-    const getTargetInterval = () => speed < 1 ? 200 / speed : 16; // ~60fps max
+    // En modo turbo (speed >= 50), reducir frecuencia de UI updates
+    const isTurboMode = speed >= 50;
+    const getTargetInterval = () => {
+      if (speed < 1) return 200 / speed;
+      if (isTurboMode) return 100; // En turbo, actualizar UI cada 100ms
+      return 16; // ~60fps normal
+    };
     
     const runTraining = async (timestamp: number) => {
       if (!isRunning) return;
@@ -287,8 +293,10 @@ export default function Home() {
       // Reset acumulador
       accumulatedTime = 0;
       
-      // Calcular épocas por tick según velocidad (sin límite)
-      const epochsThisTick = Math.max(1, Math.floor(speed));
+      // Calcular épocas por tick según velocidad
+      // En modo turbo, multiplicar por factor para compensar menor frecuencia de UI
+      const turboMultiplier = isTurboMode ? 6 : 1; // ~6x más épocas en turbo
+      const epochsThisTick = Math.max(1, Math.floor(speed * turboMultiplier));
       
       // ========== MODO MANUAL ==========
       if (networkMode === 'manual') {
@@ -392,12 +400,14 @@ export default function Home() {
             setFeatureImportance(importance);
           }
           
-          if (currentLoss < 0.0005) {
+          // Solo detener si loss es válido y muy bajo (evitar NaN/Infinity)
+          if (!isNaN(currentLoss) && isFinite(currentLoss) && currentLoss < 0.0001) {
             setIsTraining(false);
             return;
           }
         } catch (error) {
           console.error('TensorFlow training error:', error);
+          // No detener el entrenamiento por errores, solo loguear
         }
       }
       

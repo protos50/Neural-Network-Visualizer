@@ -235,26 +235,49 @@ export default function TensorFlowPanel({
           ⚙️ {t('hyperparameters')}
         </div>
         
-        {/* Speed control */}
+        {/* Speed control - escala logarítmica para mejor control */}
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <span className="text-xs text-cyan-400/50 uppercase">{t('speed')}</span>
-            <span className="text-xs text-cyan-400">
-              {speed < 1 ? speed.toFixed(1) : Math.round(speed)} {t('epochsPerTick')}
+            <span className="text-xs text-cyan-400 font-mono">
+              {speed < 1 ? speed.toFixed(2) : speed < 10 ? speed.toFixed(1) : Math.round(speed)} {t('epochsPerTick')}
             </span>
           </div>
+          {/* Slider con escala logarítmica: 0-100 mapea a 0.1-1000 */}
           <input
             type="range"
-            min="0.1"
-            max="500"
-            step={speed < 10 ? 0.1 : speed < 100 ? 1 : 10}
-            value={speed}
-            onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+            min="0"
+            max="100"
+            step="1"
+            value={Math.log10(speed * 10) * 25} // Convertir speed a posición del slider
+            onChange={(e) => {
+              // Convertir posición del slider a speed con escala logarítmica
+              const pos = parseFloat(e.target.value);
+              const newSpeed = Math.pow(10, pos / 25) / 10;
+              onSpeedChange(Math.max(0.1, Math.min(1000, newSpeed)));
+            }}
             className="w-full accent-cyan-400"
           />
-          <div className="text-[9px] text-cyan-400/30 text-center">
-            {speed >= 100 ? '⚡ Alta velocidad' : speed >= 10 ? '🚀 Rápido' : '🐢 Normal'}
+          <div className="flex justify-between text-[9px] text-cyan-400/30">
+            <span>0.1</span>
+            <span>1</span>
+            <span>10</span>
+            <span>100</span>
+            <span>1000</span>
           </div>
+          <div className="text-[9px] text-cyan-400/40 text-center">
+            {speed >= 100 ? '⚡ Turbo' : speed >= 10 ? '🚀 Rápido' : speed >= 1 ? '▶️ Normal' : '🐢 Lento'}
+          </div>
+          
+          {/* Turbo mode toggle - solo actualiza UI cada N épocas */}
+          {speed >= 50 && (
+            <div className="flex items-center justify-center gap-2 mt-1 p-1 bg-yellow-500/10 border border-yellow-500/30 rounded">
+              <Zap size={12} className="text-yellow-400" />
+              <span className="text-[9px] text-yellow-400">
+                Modo Turbo: UI cada {Math.round(speed/10)*10} épocas
+              </span>
+            </div>
+          )}
         </div>
         
         {/* Learning rate */}
