@@ -265,13 +265,10 @@ export default function Home() {
     let accumulatedTime = 0;
     let animationFrameId: number;
     
-    // Intervalo base: más lento a bajas velocidades, más rápido a altas
-    // En modo turbo (speed >= 50), reducir frecuencia de UI updates
-    const isTurboMode = speed >= 50;
+    // Intervalo base: más lento a bajas velocidades
     const getTargetInterval = () => {
       if (speed < 1) return 200 / speed;
-      if (isTurboMode) return 100; // En turbo, actualizar UI cada 100ms
-      return 16; // ~60fps normal
+      return 16; // ~60fps para todos los demás casos
     };
     
     const runTraining = async (timestamp: number) => {
@@ -294,9 +291,8 @@ export default function Home() {
       accumulatedTime = 0;
       
       // Calcular épocas por tick según velocidad
-      // En modo turbo, multiplicar por factor para compensar menor frecuencia de UI
-      const turboMultiplier = isTurboMode ? 6 : 1; // ~6x más épocas en turbo
-      const epochsThisTick = Math.max(1, Math.floor(speed * turboMultiplier));
+      // Limitar a 100 épocas máx por tick para no bloquear la UI
+      const epochsThisTick = Math.max(1, Math.min(100, Math.floor(speed)));
       
       // ========== MODO MANUAL ==========
       if (networkMode === 'manual') {

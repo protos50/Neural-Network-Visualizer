@@ -266,16 +266,11 @@ export default function TensorFlowPanel({
             <span>1000</span>
           </div>
           <div className="text-[9px] text-cyan-400/40 text-center">
-            {speed >= 100 ? '⚡ Turbo' : speed >= 10 ? '🚀 Rápido' : speed >= 1 ? '▶️ Normal' : '🐢 Lento'}
+            {speed >= 100 ? '⚡ ~6000 ép/s' : speed >= 10 ? '🚀 Rápido' : speed >= 1 ? '▶️ Normal' : '🐢 Lento'}
           </div>
-          
-          {/* Turbo mode toggle - solo actualiza UI cada N épocas */}
-          {speed >= 50 && (
-            <div className="flex items-center justify-center gap-2 mt-1 p-1 bg-yellow-500/10 border border-yellow-500/30 rounded">
-              <Zap size={12} className="text-yellow-400" />
-              <span className="text-[9px] text-yellow-400">
-                Modo Turbo: UI cada {Math.round(speed/10)*10} épocas
-              </span>
+          {speed > 100 && (
+            <div className="text-[8px] text-cyan-400/30 text-center">
+              (máx 100 ép/tick × 60fps)
             </div>
           )}
         </div>
@@ -364,6 +359,23 @@ export default function TensorFlowPanel({
               <option key={lf} value={lf}>{lf}</option>
             ))}
           </select>
+          
+          {/* Advertencia de compatibilidad */}
+          {(config.loss === 'binaryCrossentropy' || config.loss === 'categoricalCrossentropy') && config.inputSize === 1 && (
+            <div className="mt-1 p-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded text-[9px] text-yellow-400">
+              ⚠️ Esta loss es para clasificación. En regresión (funciones matemáticas), usa MSE, MAE, Huber o LogCosh.
+            </div>
+          )}
+          {config.loss === 'categoricalCrossentropy' && config.outputSize === 1 && (
+            <div className="mt-1 p-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded text-[9px] text-yellow-400">
+              ⚠️ Categorical CE requiere múltiples clases (outputSize {'>'} 1). Usa Binary CE para clasificación binaria.
+            </div>
+          )}
+          {config.loss === 'binaryCrossentropy' && (
+            <div className="mt-1 p-1 bg-cyan-500/10 border border-cyan-500/20 rounded text-[9px] text-cyan-400/70">
+              💡 Usa activación <strong>sigmoid</strong> en la capa de salida
+            </div>
+          )}
         </div>
       </div>
       
