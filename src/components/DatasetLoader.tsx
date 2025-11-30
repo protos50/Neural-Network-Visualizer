@@ -39,17 +39,29 @@ export default function DatasetLoader({ onDatasetLoad, disabled = false }: Datas
   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const [loadedDataset, setLoadedDataset] = useState<string | null>(null);
 
-  // Cargar lista de datasets disponibles
-  useEffect(() => {
-    fetch('/api/datasets')
+  // Cargar lista de datasets disponibles (con cache busting)
+  const fetchDatasets = () => {
+    // Agregar timestamp para evitar cache
+    const timestamp = new Date().getTime();
+    fetch(`/api/datasets?t=${timestamp}`)
       .then(res => res.json())
       .then(data => {
         setDatasets(data.datasets || []);
+        setError(null);
       })
       .catch(err => {
         console.error('Error fetching datasets:', err);
         setError('No se pudo cargar la lista de datasets');
       });
+  };
+
+  useEffect(() => {
+    fetchDatasets();
+    
+    // Recargar lista cada 2 segundos (para detectar nuevos datasets)
+    const interval = setInterval(fetchDatasets, 2000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Parsear CSV a números
@@ -148,10 +160,19 @@ export default function DatasetLoader({ onDatasetLoad, disabled = false }: Datas
 
   return (
     <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center gap-2 text-xs text-cyan-400/70 uppercase tracking-wider">
-        <Database size={14} />
-        <span>{t('loadDatasetCsv')}</span>
+      {/* Header con botón refresh */}
+      <div className="flex items-center justify-between text-xs text-cyan-400/70 uppercase tracking-wider">
+        <div className="flex items-center gap-2">
+          <Database size={14} />
+          <span>{t('loadDatasetCsv')}</span>
+        </div>
+        <button
+          onClick={fetchDatasets}
+          title="Recargar lista de datasets"
+          className="text-cyan-400/50 hover:text-cyan-400 transition-colors p-1"
+        >
+          ↻
+        </button>
       </div>
 
       {/* Selector */}
